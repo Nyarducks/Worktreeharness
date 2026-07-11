@@ -75,25 +75,27 @@ Skip if there are zero findings — proceed to Step 9.
 
 ```bash
 scripts/create-worktree.sh $OWNER_REPO $BRANCH
-# Worktree path: /home/caramel/LocalProject/Worktreeharness/worktree/<repo>/<branch>/
+# Worktree path: worktree/<repo>/<branch>/  (relative to harness root)
 ```
 
 If the worktree already exists, skip creation and use the existing path.
 
 ## Step 6: Investigate before fixing
 
-Read the relevant files in the worktree directly:
+Read the relevant files in the worktree directly (use the absolute path printed by `create-worktree.sh`):
 
-```
-Read: /home/caramel/LocalProject/Worktreeharness/worktree/<repo>/<branch>/<path/to/file>
+```bash
+LAB=$(git rev-parse --show-toplevel)
+# Read: $LAB/worktree/<repo>/<branch>/<path/to/file>
 ```
 
 ## Step 7: Fix findings
 
 Edit files in the worktree using absolute paths:
 
-```
-Edit: /home/caramel/LocalProject/Worktreeharness/worktree/<repo>/<branch>/<path/to/file>
+```bash
+# Edit: $LAB/worktree/<repo>/<branch>/<path/to/file>
+# where $LAB = output of: git rev-parse --show-toplevel
 ```
 
 After all edits, commit:

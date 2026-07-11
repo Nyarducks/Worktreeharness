@@ -14,7 +14,11 @@ Workflow for implementing multiple independent tasks concurrently across one or 
 ./worktree/<repo-name>/<branch>/  # Active worktree; edit files here
 ```
 
-Harness root: `/home/caramel/LocalProject/Worktreeharness/`
+All paths below are relative to the harness root. Resolve the harness root at any time with:
+
+```bash
+LAB=$(git rev-parse --show-toplevel)
+```
 
 ## Step 1: Set up the base repository
 
@@ -22,7 +26,7 @@ Use `setup-repo.sh` to clone into `repos/` or fast-forward an existing clone to 
 
 ```bash
 REPO_PATH=$(scripts/setup-repo.sh <owner>/<repo>)
-# → /home/caramel/LocalProject/Worktreeharness/repos/<repo>
+# → repos/<repo>  (absolute path printed to stdout)
 ```
 
 The script prints the absolute path on stdout.
@@ -57,13 +61,15 @@ scripts/create-worktree.sh <owner>/<repo> feat/topic-b
 Work directly in each worktree using absolute paths. Always read before writing:
 
 ```bash
-grep -n '<symbol>' /home/caramel/LocalProject/Worktreeharness/worktree/<repo>/feat/topic-a/<file>
+LAB=$(git rev-parse --show-toplevel)
+grep -n '<symbol>' $LAB/worktree/<repo>/feat/topic-a/<file>
 ```
 
 Edit using absolute worktree paths:
 
 ```
-Edit: /home/caramel/LocalProject/Worktreeharness/worktree/<repo>/feat/topic-a/<path/to/file>
+Edit: $LAB/worktree/<repo>/feat/topic-a/<path/to/file>
+# where $LAB = output of: git rev-parse --show-toplevel
 ```
 
 After completing a task, commit in that worktree:
@@ -113,5 +119,5 @@ git -C repos/<repo> worktree list
 - Each worktree shares `.git` with `repos/<repo>` but has its own working directory
 - The same branch cannot be checked out in multiple worktrees simultaneously
 - Never edit `repos/<repo>` directly — the guard hook enforces this
-- Set `WORKTREE_LAB_DIR=/home/caramel/LocalProject/Worktreeharness` if auto-detection fails
+- Set `WORKTREE_LAB_DIR=<harness-root>` if auto-detection fails (e.g. `export WORKTREE_LAB_DIR=$(git rev-parse --show-toplevel)`)
 - Never use `cd` to navigate into repos — use `git -C <path>` for git commands and absolute paths for file operations

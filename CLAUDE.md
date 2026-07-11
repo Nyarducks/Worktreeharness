@@ -45,10 +45,12 @@ git -C worktree/SomeRepo/feat/my-feature push -u origin feat/my-feature
 gh pr create --repo owner/SomeRepo --head feat/my-feature --title "..."
 ```
 
-### This harness itself (nyarducks/Worktreeharness)
+### This harness itself
 
 ```bash
-scripts/create-worktree.sh nyarducks/Worktreeharness feat/improve-scripts
+# Resolve your GitHub slug from the remote URL
+SLUG=$(git remote get-url origin | sed 's|.*github\.com[:/]\(.*\)\.git|\1|')
+scripts/create-worktree.sh $SLUG feat/improve-scripts
 # → worktree/Worktreeharness/feat/improve-scripts/
 ```
 

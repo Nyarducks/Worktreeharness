@@ -30,10 +30,8 @@ mkdir -p .claude/hooks .claude/skills/git-operations .claude/skills/parallel-wor
 
 ### 1-2. Copy scripts from the harness
 
-From the Worktreeharness root (`/home/caramel/LocalProject/Worktreeharness`):
-
 ```bash
-HARNESS=/home/caramel/LocalProject/Worktreeharness
+HARNESS=$(git rev-parse --show-toplevel)   # run from inside Worktreeharness
 TARGET=/path/to/new-repo
 
 cp $HARNESS/scripts/setup-repo.sh       $TARGET/scripts/
@@ -56,15 +54,9 @@ cp $HARNESS/.claude/skills/pr-review-fix/SKILL.md     $TARGET/.claude/skills/pr-
 cp $HARNESS/.claude/skills/setup-harness/SKILL.md     $TARGET/.claude/skills/setup-harness/
 ```
 
-### 1-4. Update path references
+### 1-4. Verify no absolute paths
 
-Edit `parallel-worktree/SKILL.md` and `pr-review-fix/SKILL.md` to replace:
-```
-/home/caramel/LocalProject/Worktreeharness/
-```
-with the new repo's absolute path.
-
-Update `guard-writes-to-worktree.sh`: change the denial message's skill path to point to the new location if needed.
+The copied skill files use `$(git rev-parse --show-toplevel)` for dynamic path resolution and contain no hardcoded absolute paths. No substitution is needed.
 
 ### 1-5. Create .claude/settings.json
 
@@ -155,14 +147,16 @@ The worktree is branched from `origin/main` of the imported repo.
 
 ### 2-3. Work in the worktree
 
-Read and edit files using absolute paths:
+Read and edit files using absolute paths resolved from the harness root:
 
 ```bash
-# Read
-cat /home/caramel/LocalProject/Worktreeharness/worktree/<repo>/feat/<topic>/src/file.ts
+LAB=$(git rev-parse --show-toplevel)
 
-# Edit via Claude Code tool
-Edit: /home/caramel/LocalProject/Worktreeharness/worktree/<repo>/feat/<topic>/src/file.ts
+# Read
+cat $LAB/worktree/<repo>/feat/<topic>/src/file.ts
+
+# Edit via Claude Code tool — pass the full path printed by create-worktree.sh
+# Edit: $LAB/worktree/<repo>/feat/<topic>/src/file.ts
 ```
 
 ### 2-4. Commit and push
@@ -197,5 +191,5 @@ git -C repos/<repo> branch -d feat/<topic>
 Set `WORKTREE_LAB_DIR` if auto-detection of the harness root fails:
 
 ```bash
-export WORKTREE_LAB_DIR=/home/caramel/LocalProject/Worktreeharness
+export WORKTREE_LAB_DIR=$(git rev-parse --show-toplevel)
 ```
