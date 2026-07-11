@@ -89,8 +89,41 @@ git -C worktree/<repo>/feat/topic-a log --oneline -3
 
 ```bash
 git -C worktree/<repo>/feat/topic-a push -u origin feat/topic-a
-gh pr create --repo <owner>/<repo> --head feat/topic-a --title "..." --body "..."
+PR_URL=$(gh pr create --repo <owner>/<repo> --head feat/topic-a --title "..." --body "...")
+PR=$(basename "$PR_URL")   # extract PR number from URL
 ```
+
+Immediately after PR creation, log the initial commit to Decision Logs:
+
+```bash
+scripts/append-pr-log.sh <owner>/<repo> "$PR" worktree/<repo>/feat/topic-a <<'EOF'
+### What changed
+- <describe what this commit implements>
+
+### Why
+<rationale for the approach taken>
+EOF
+```
+
+### Subsequent commits on the same PR
+
+After every additional commit pushed to the PR branch, append another entry:
+
+```bash
+git -C worktree/<repo>/feat/topic-a add <files>
+git -C worktree/<repo>/feat/topic-a commit -m "..."
+git -C worktree/<repo>/feat/topic-a push origin feat/topic-a
+
+scripts/append-pr-log.sh <owner>/<repo> "$PR" worktree/<repo>/feat/topic-a <<'EOF'
+### What changed
+- <describe changes in this commit>
+
+### Why
+<reason: review feedback / bug found / design refinement / etc.>
+EOF
+```
+
+Each entry is collapsed by default under a `<details>` block. The summary line is `<commit message> (<short SHA>)`.
 
 Edit PR body via REST API PATCH if needed (`gh pr edit` may fail with a deprecation warning):
 

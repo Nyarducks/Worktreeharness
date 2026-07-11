@@ -40,7 +40,7 @@ Use standard `git -C <worktree-path> add / commit`. Never commit directly in `re
 
 ```bash
 git -C worktree/<repo>/<branch> push -u origin <branch-name>
-gh pr create \
+PR_URL=$(gh pr create \
   --repo <owner>/<repo> \
   --head <branch-name> \
   --title "<title>" \
@@ -63,10 +63,40 @@ Motivation and context
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 EOF
-)"
+)")
+PR=$(basename "$PR_URL")   # extract PR number from URL
 ```
 
 Always pass `--assignee @me` and `--label`.
+
+Immediately after PR creation, log the initial commit:
+
+```bash
+scripts/append-pr-log.sh <owner>/<repo> "$PR" worktree/<repo>/<branch> <<'EOF'
+### What changed
+- <describe what this commit implements>
+
+### Why
+<rationale for the approach taken>
+EOF
+```
+
+## Decision Logs
+
+Every commit pushed to a PR branch must be recorded in the PR body under `## Decision Logs`. Use `scripts/append-pr-log.sh` after each commit:
+
+```bash
+# After git commit + git push
+scripts/append-pr-log.sh <owner>/<repo> <pr-number> worktree/<repo>/<branch> <<'EOF'
+### What changed
+- <describe changes in this commit>
+
+### Why
+<reason: review feedback / bug found / design refinement / etc.>
+EOF
+```
+
+The script appends a collapsed `<details>` block. The `<summary>` line is `<commit message> (<short SHA>)`. The `## Decision Logs` header is created automatically on first call if absent.
 
 ## Labels
 
@@ -103,14 +133,6 @@ gh api repos/<owner>/<repo>/pulls/<pull_number>/comments/<comment_id>/replies \
 Pitfalls:
 1. **Missing pull number in path** — `/pulls/{pull_number}/comments/{comment_id}/replies`; omitting it returns 404.
 2. **Backticks in double-quoted strings** — always use single quotes for `-f body=` when the body contains backticks.
-
-## Merging a PR
-
-```bash
-gh pr merge <number> --repo <owner>/<repo> --merge --delete-branch
-```
-
-Always use `--merge` (merge commit). Do not use `--squash` or `--rebase`.
 
 ## Viewing raw file content
 
