@@ -91,7 +91,30 @@ git -C worktree/<repo>/feat/topic-a log --oneline -3
 
 ```bash
 git -C worktree/<repo>/feat/topic-a push -u origin feat/topic-a
-PR_URL=$(gh pr create --repo <owner>/<repo> --head feat/topic-a --title "..." --body "...")
+PR_URL=$(gh pr create \
+  --repo <owner>/<repo> \
+  --head feat/topic-a \
+  --title "<title>" \
+  --assignee @me \
+  --label "<labels>" \
+  --body "$(cat <<'EOF'
+## Summary
+
+- change 1
+- change 2
+
+## Background
+
+Motivation and context
+
+## Test plan
+
+- [ ] item 1
+- [ ] item 2
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)")
 PR=$(basename "$PR_URL")   # extract PR number from URL
 ```
 
