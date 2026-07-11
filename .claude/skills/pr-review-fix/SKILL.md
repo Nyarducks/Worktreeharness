@@ -49,13 +49,27 @@ gh api repos/$OWNER_REPO/pulls/$PR/comments \
   -f 'path=<file>' \
   -F 'line=<line_number>' \
   -f 'side=RIGHT' \
-  -f 'body=**[severity]** description'
+  -f 'body=**[severity]** description
+
+---
+🤖 Sent from [Claude Code](https://claude.ai/code)'
 ```
 
 Pitfalls:
 1. **Backticks in `-f body=`** — always use single quotes.
 2. **`line` must be in the diff** — use `position` (diff line offset) if the absolute line is not in the hunk.
 3. **Missing pull number in path** — `/pulls/{pull_number}/comments/{comment_id}/replies` requires `{pull_number}`.
+
+### Replying to a review comment
+
+```bash
+gh api repos/$OWNER_REPO/pulls/$PR/comments/<comment_id>/replies \
+  -X POST \
+  -f 'body=reply text
+
+---
+🤖 Sent from [Claude Code](https://claude.ai/code)'
+```
 
 ## Step 4: Submit a Request Changes review
 
@@ -65,6 +79,9 @@ gh pr review $PR --repo $OWNER_REPO --request-changes --body "$(cat <<'EOF'
 
 All inline findings must be resolved before this PR can be approved.
 See individual comments for details.
+
+---
+🤖 Sent from [Claude Code](https://claude.ai/code)
 EOF
 )"
 ```
@@ -132,16 +149,31 @@ gh pr comment $PR --repo $OWNER_REPO --body "$(cat <<'EOF'
 
 ### Fix commit
 Commit: <hash>
+
+---
+🤖 Sent from [Claude Code](https://claude.ai/code)
 EOF
 )"
 
-gh pr review $PR --repo $OWNER_REPO --approve --body "All findings fixed — LGTM."
+gh pr review $PR --repo $OWNER_REPO --approve --body "$(cat <<'EOF'
+All findings fixed — LGTM.
+
+---
+🤖 Sent from [Claude Code](https://claude.ai/code)
+EOF
+)"
 ```
 
 If zero findings:
 
 ```bash
-gh pr review $PR --repo $OWNER_REPO --approve --body "LGTM — no findings."
+gh pr review $PR --repo $OWNER_REPO --approve --body "$(cat <<'EOF'
+LGTM — no findings.
+
+---
+🤖 Sent from [Claude Code](https://claude.ai/code)
+EOF
+)"
 ```
 
 ## Notes
