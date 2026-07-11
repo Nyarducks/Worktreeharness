@@ -102,17 +102,49 @@ The script appends a collapsed `<details>` block. The `<summary>` line is `<comm
 
 ## Labels
 
-Apply labels based on the change content.
+Apply labels to every PR on create. Always pass `--label` — never omit it.
 
-### Type labels
+### Component labels (apply all that match)
+
+Component labels are repo-specific. Common conventions:
+
+| Label | Scope |
+|---|---|
+| `backend` | Server-side / API changes |
+| `frontend` | Client-side / UI changes |
+| `infra` | Infrastructure / Kubernetes / Helm changes |
+| `documentation` | Documentation changes (`docs/`, `*.md`) |
+| `ci` | CI/CD pipeline changes (`.github/`) |
+
+Check the target repo's existing labels first:
+
+```bash
+gh label list --repo <owner>/<repo>
+```
+
+### Type labels (always apply exactly one)
 
 | Label | When |
 |---|---|
 | `bug` | Fixes a bug |
 | `enhancement` | New feature or improvement |
 | `dependencies` | Dependency version updates |
-| `documentation` | Documentation changes |
+| `documentation` | Documentation-only changes |
 | `ci` | CI/CD pipeline changes |
+
+### Examples
+
+```bash
+# Bug fix in backend
+gh pr create --label "backend,bug" ...
+
+# New feature spanning frontend + docs
+gh pr create --label "frontend,documentation,enhancement" ...
+
+# Add labels after creation
+gh pr edit <number> --add-label "backend,bug"
+gh issue edit <number> --add-label "frontend,enhancement"
+```
 
 ## Editing a PR body
 
