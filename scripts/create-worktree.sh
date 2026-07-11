@@ -12,36 +12,61 @@ usage() {
   exit 1
 }
 
-[[ $# -ne 2 ]] && usage
+# Output variables: REPO_NAME, WORKTREE_PATH
+compute_paths() {
+  local REPO_PATH="$1"
+  local BRANCH_NAME="$2"
+  REPO_NAME="$(basename "${REPO_PATH}")"
+  local LAB_DIR
+  LAB_DIR="$(dirname "$(dirname "${REPO_PATH}")")"
+  WORKTREE_PATH="${LAB_DIR}/worktree/${REPO_NAME}/${BRANCH_NAME}"
+}
 
-REPO_ARG="$1"
-BRANCH_NAME="$2"
+add_worktree() {
+  local REPO_PATH="$1"
+  local WORKTREE_PATH="$2"
+  local BRANCH_NAME="$3"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  if [[ -d "${WORKTREE_PATH}" ]]; then
+    echo "Error: worktree already exists at ${WORKTREE_PATH}" >&2
+    exit 1
+  fi
 
-REPO_PATH=$("$SCRIPT_DIR/setup-repo.sh" "$REPO_ARG")
+  mkdir -p "$(dirname "${WORKTREE_PATH}")"
+  echo "Creating worktree for ${REPO_NAME} at ${WORKTREE_PATH} ..."
+  git -C "${REPO_PATH}" worktree add "${WORKTREE_PATH}" -b "${BRANCH_NAME}" origin/main
+}
 
-LAB_DIR="$(dirname "$(dirname "$REPO_PATH")")"
-REPO_NAME="$(basename "$REPO_PATH")"
-WORKTREE_DIR="$LAB_DIR/worktree"
-WORKTREE_PATH="$WORKTREE_DIR/$REPO_NAME/$BRANCH_NAME"
+install_hooks_if_present() {
+  local REPO_PATH="$1"
+  if [[ -f "${REPO_PATH}/scripts/setup-hooks.sh" ]]; then
+    bash "${REPO_PATH}/scripts/setup-hooks.sh"
+  fi
+}
 
-if [[ -d "$WORKTREE_PATH" ]]; then
-  echo "Error: worktree already exists at $WORKTREE_PATH" >&2
-  exit 1
-fi
+main() {
+  [[ $# -ne 2 ]] && usage
 
-mkdir -p "$(dirname "$WORKTREE_PATH")"
+  local SCRIPT_DIR
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "Creating worktree for $REPO_NAME at $WORKTREE_PATH ..."
-git -C "$REPO_PATH" worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME" origin/main
+  local REPO_ARG="$1"
+  local BRANCH_NAME="$2"
 
-if [[ -f "$REPO_PATH/scripts/setup-hooks.sh" ]]; then
-  bash "$REPO_PATH/scripts/setup-hooks.sh"
-fi
+  local REPO_PATH
+  REPO_PATH="$("${SCRIPT_DIR}/setup-repo.sh" "${REPO_ARG}")"
 
-echo ""
-echo "Done."
-echo "  Repo:   $REPO_NAME"
-echo "  Path:   $WORKTREE_PATH"
-echo "  Branch: $BRANCH_NAME"
+  local REPO_NAME WORKTREE_PATH
+  compute_paths "${REPO_PATH}" "${BRANCH_NAME}"
+
+  add_worktree "${REPO_PATH}" "${WORKTREE_PATH}" "${BRANCH_NAME}"
+  install_hooks_if_present "${REPO_PATH}"
+
+  echo ""
+  echo "Done."
+  echo "  Repo:   ${REPO_NAME}"
+  echo "  Path:   ${WORKTREE_PATH}"
+  echo "  Branch: ${BRANCH_NAME}"
+}
+
+main "$@"

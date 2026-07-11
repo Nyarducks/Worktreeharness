@@ -1,15 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)
-if [ "$BRANCH" = "main" ]; then
-  echo "[pre-commit] direct commits to $BRANCH are not allowed. use a feature branch."
-  exit 1
-fi
+check_protected_branch() {
+  local BRANCH="$1"
+  if [[ "${BRANCH}" == "main" ]]; then
+    echo "[pre-commit] direct commits to ${BRANCH} are not allowed. use a feature branch."
+    exit 1
+  fi
+}
 
-PR_STATE=$(gh pr view "$BRANCH" --json state -q .state 2>/dev/null || echo "")
-if [ "$PR_STATE" = "MERGED" ] || [ "$PR_STATE" = "CLOSED" ]; then
-  echo "[pre-commit] PR for branch '$BRANCH' is already ${PR_STATE,,}."
-  echo "  Create a new branch: git checkout -b feat/<topic>"
-  exit 1
-fi
+check_pr_state() {
+  local BRANCH="$1"
+  local PR_STATE
+  PR_STATE="$(gh pr view "${BRANCH}" --json state -q .state 2>/dev/null || echo "")"
+  if [[ "${PR_STATE}" == "MERGED" || "${PR_STATE}" == "CLOSED" ]]; then
+    echo "[pre-commit] PR for branch '${BRANCH}' is already ${PR_STATE,,}."
+    echo "  Create a new branch: git checkout -b feat/<topic>"
+    exit 1
+  fi
+}
+
+main() {
+  local BRANCH
+  BRANCH="$(git symbolic-ref --short HEAD 2>/dev/null)"
+  check_protected_branch "${BRANCH}"
+  check_pr_state "${BRANCH}"
+}
+
+main "$@"
