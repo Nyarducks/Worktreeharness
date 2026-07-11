@@ -1,3 +1,10 @@
 repos/
 tmp/
 worktree/
+
+# Ignore any locally-added skills; only track the four committed here
+.claude/skills/*
+!.claude/skills/git-operations
+!.claude/skills/parallel-worktree
+!.claude/skills/pr-review-fix
+!.claude/skills/setup-harness
