@@ -61,6 +61,8 @@ scripts/create-worktree.sh $SLUG feat/improve-scripts
 - Never commit directly to `main` — always use a feature branch + PR
 - Branch naming: `feat/<feature>`, `fix/<issue>`, `refactor/<scope>`
 - The pre-commit hook blocks direct commits to `main` and commits to already-merged/closed PR branches
+- **Never approve a PR** (`gh pr review --approve`) — approval is always performed by the human
+- **Never merge a PR** (`gh pr merge`) — merging is always performed by the human
 
 ---
 

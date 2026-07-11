@@ -136,7 +136,7 @@ git -C worktree/<repo>/<branch>/ push origin $BRANCH
 
 No new PR needed — the fix commit lands on the existing PR branch.
 
-## Step 9: Post a summary comment and approve
+## Step 9: Post a summary comment
 
 ```bash
 gh pr comment $PR --repo $OWNER_REPO --body "$(cat <<'EOF'
@@ -150,13 +150,7 @@ gh pr comment $PR --repo $OWNER_REPO --body "$(cat <<'EOF'
 ### Fix commit
 Commit: <hash>
 
----
-🤖 Sent from [Claude Code](https://claude.ai/code)
-EOF
-)"
-
-gh pr review $PR --repo $OWNER_REPO --approve --body "$(cat <<'EOF'
-All findings fixed — LGTM.
+LGTM — all findings fixed. Ready for your approval.
 
 ---
 🤖 Sent from [Claude Code](https://claude.ai/code)
@@ -167,14 +161,16 @@ EOF
 If zero findings:
 
 ```bash
-gh pr review $PR --repo $OWNER_REPO --approve --body "$(cat <<'EOF'
-LGTM — no findings.
+gh pr comment $PR --repo $OWNER_REPO --body "$(cat <<'EOF'
+LGTM — no findings. Ready for your approval.
 
 ---
 🤖 Sent from [Claude Code](https://claude.ai/code)
 EOF
 )"
 ```
+
+> **Do not approve or merge the PR.** Approval and merge are always performed by the human reviewer.
 
 ## Notes
 
