@@ -41,7 +41,7 @@ get_commit_info() {
 
 build_entry() {
   local INNER_CONTENT="$1"
-  printf '<details>\n<summary>%s (%s)</summary>\n\n%s\n\n</details>' \
+  printf '<details>\n<summary>%s (%s)</summary>\n\n%s\n\n---\n\n</details>' \
     "${COMMIT_MSG}" "${SHORT_SHA}" "${INNER_CONTENT}"
 }
 

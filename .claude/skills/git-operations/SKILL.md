@@ -38,6 +38,8 @@ Use standard `git -C <worktree-path> add / commit`. Never commit directly in `re
 
 **Always push the branch before running `gh pr create`.**
 
+**PR title, body, and all Decision Log entries must be written in English.**
+
 ```bash
 git -C worktree/<repo>/<branch> push -u origin <branch-name>
 PR_URL=$(gh pr create \
