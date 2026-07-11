@@ -87,6 +87,8 @@ git -C worktree/<repo>/feat/topic-a log --oneline -3
 
 ## Step 6: Create PRs
 
+**PR title, body, and all Decision Log entries must be written in English.**
+
 ```bash
 git -C worktree/<repo>/feat/topic-a push -u origin feat/topic-a
 PR_URL=$(gh pr create --repo <owner>/<repo> --head feat/topic-a --title "..." --body "...")
