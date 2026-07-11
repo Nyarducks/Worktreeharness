@@ -112,6 +112,41 @@ scripts/create-worktree.sh <owner>/<repo> feat/task-b
 
 ---
 
+## Posting PR comments as a bot (GitHub App)
+
+By default `gh` posts under your personal GitHub account. To have Claude post as a bot identity (shown as `<app-name>[bot]` in the GitHub UI), use a **GitHub App installation token**.
+
+### One-time setup
+
+1. Go to **GitHub → Settings → Developer settings → GitHub Apps → New GitHub App**.
+   - Name: e.g. `Claude Code`
+   - Homepage URL: any value
+   - Permissions → **Pull requests: Read & Write**, **Contents: Read**
+   - Uncheck "Webhook active"
+2. After creation note the **App ID** on the app settings page.
+3. Under **Private keys**, click **Generate a private key** and save the `.pem` file outside the repo, e.g. `~/.config/github-apps/claude-code.pem`.
+4. Install the App on each target repository: **App settings → Install App → select repo**.
+5. Export two environment variables (add to `~/.bashrc` or `~/.zshrc`):
+
+```bash
+export GITHUB_APP_ID=<numeric-app-id>
+export GITHUB_APP_PRIVATE_KEY_PATH="${HOME}/.config/github-apps/claude-code.pem"
+```
+
+### Generating a token
+
+```bash
+# Prints a short-lived installation token (~1 hour)
+BOT_TOKEN="$(scripts/github-app-token.sh <owner>/<repo>)"
+
+# Use it for any gh api call that should appear as the bot
+GITHUB_TOKEN="${BOT_TOKEN}" gh api repos/<owner>/<repo>/pulls/<pr>/comments -X POST ...
+```
+
+`scripts/github-app-token.sh` uses only `openssl`, `curl`, and `jq` — no Python or Node packages required.
+
+---
+
 ## Claude Code skills
 
 The following slash commands are available inside Claude Code when working in this harness:
