@@ -44,6 +44,22 @@ install_hooks_if_present() {
   fi
 }
 
+install_harness_hooks() {
+  local REPO_PATH="$1"
+  local HOOKS_SRC
+  HOOKS_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/hooks"
+  local HOOKS_DST="${REPO_PATH}/.git/hooks"
+  [[ -d "$HOOKS_SRC" ]] || return 0
+  for hook in "$HOOKS_SRC"/*; do
+    local name
+    name="$(basename "$hook")"
+    if [[ ! -f "${HOOKS_DST}/${name}" ]]; then
+      cp "$hook" "${HOOKS_DST}/${name}"
+      chmod +x "${HOOKS_DST}/${name}"
+    fi
+  done
+}
+
 main() {
   [[ $# -ne 2 ]] && usage
 
@@ -61,6 +77,7 @@ main() {
 
   add_worktree "${REPO_PATH}" "${WORKTREE_PATH}" "${BRANCH_NAME}"
   install_hooks_if_present "${REPO_PATH}"
+  install_harness_hooks "${REPO_PATH}"
 
   echo ""
   echo "Done."
