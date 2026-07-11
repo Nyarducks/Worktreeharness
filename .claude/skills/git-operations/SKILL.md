@@ -40,6 +40,13 @@ Use standard `git -C <worktree-path> add / commit`. Never commit directly in `re
 
 **PR title, body, and all Decision Log entries must be written in English.**
 
+**Always check for a PR template in the target repo before writing the body.** If `.github/pull_request_template.md` exists, use it as the structure for `--body`:
+
+```bash
+gh api repos/<owner>/<repo>/contents/.github/pull_request_template.md \
+  -H "Accept: application/vnd.github.raw"
+```
+
 ```bash
 git -C worktree/<repo>/<branch> push -u origin <branch-name>
 PR_URL=$(gh pr create \

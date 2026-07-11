@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# pre-push: remind to use the target repo's PR template when opening a PR
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+TEMPLATE="${REPO_ROOT}/.github/pull_request_template.md"
+
+if [[ -f "$TEMPLATE" ]]; then
+    echo ""
+    echo "[pre-push] PR template found at .github/pull_request_template.md"
+    echo "           Use it as the --body when running gh pr create."
+    echo ""
+fi
