@@ -169,12 +169,58 @@ git -C worktree/<repo>/feat/<topic> push -u origin feat/<topic>
 
 ### 2-5. Create a PR against the original repo
 
+**PR title, body, and all Decision Log entries must be written in English.**
+
 ```bash
-gh pr create \
+PR_URL=$(gh pr create \
   --repo <owner>/<repo> \
   --head feat/<topic> \
   --title "..." \
-  --body "..."
+  --assignee @me \
+  --label "<labels>" \
+  --body "$(cat <<'EOF'
+## Summary
+
+- change 1
+- change 2
+
+## Background
+
+Motivation and context
+
+## Test plan
+
+- [ ] item 1
+- [ ] item 2
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)")
+PR=$(basename "$PR_URL")
+```
+
+Immediately after PR creation, log the initial commit to Decision Logs:
+
+```bash
+scripts/append-pr-log.sh <owner>/<repo> "$PR" worktree/<repo>/feat/<topic> <<'EOF'
+### What changed
+- <describe what this commit implements>
+
+### Why
+<rationale for the approach taken>
+EOF
+```
+
+For each subsequent commit pushed to the PR branch, append another entry:
+
+```bash
+scripts/append-pr-log.sh <owner>/<repo> "$PR" worktree/<repo>/feat/<topic> <<'EOF'
+### What changed
+- <describe changes in this commit>
+
+### Why
+<reason: review feedback / bug found / design refinement / etc.>
+EOF
 ```
 
 ### 2-6. Cleanup after merge

@@ -1,12 +1,33 @@
 #!/usr/bin/env bash
-# pre-push: remind to use the target repo's PR template when opening a PR
+# pre-push: remind about PR workflow rules before every push
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 TEMPLATE="${REPO_ROOT}/.github/pull_request_template.md"
 
+# --- PR template reminder ---
 if [[ -f "$TEMPLATE" ]]; then
     echo ""
     echo "[pre-push] PR template found at .github/pull_request_template.md"
     echo "           Use it as the --body when running gh pr create."
-    echo ""
 fi
+
+# --- Language reminder ---
+echo ""
+echo "[pre-push] PR title, body, and all Decision Log entries must be written in English."
+
+# --- Decision Log reminder (fires on 2nd+ commit pushed to an existing open PR) ---
+if command -v gh &>/dev/null; then
+    PR_NUM="$(gh pr view --json number,state -q 'select(.state=="OPEN") | .number' 2>/dev/null || true)"
+    if [[ -n "$PR_NUM" ]]; then
+        echo ""
+        echo "[pre-push] Open PR #${PR_NUM} detected — after pushing, append a Decision Log entry:"
+        echo "           scripts/append-pr-log.sh <owner>/<repo> ${PR_NUM} worktree/<repo>/<branch> <<'EOF'"
+        echo "           ### What changed"
+        echo "           - <describe changes in this commit>"
+        echo "           ### Why"
+        echo "           <reason: review feedback / bug found / design refinement / etc.>"
+        echo "           EOF"
+    fi
+fi
+
+echo ""
