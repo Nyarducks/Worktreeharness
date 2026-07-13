@@ -21,18 +21,12 @@ main() {
 
   FP="$(realpath -m "${FP}" 2>/dev/null || echo "${FP}")"
 
-  local REPO_ROOT
-  REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
-  [[ -z "${REPO_ROOT}" ]] && exit 0
+  # Derive harness root from this script's own path: <HARNESS>/.claude/hooks/<script>
+  local HARNESS_ROOT
+  HARNESS_ROOT="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
+  [[ -z "${HARNESS_ROOT}" || ! -d "${HARNESS_ROOT}" ]] && exit 0
 
-  if is_under "${FP}" "${REPO_ROOT}"; then exit 0; fi
-
-  local MAIN_REPO
-  MAIN_REPO="$(git worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')"
-
-  if is_under "${FP}" "${MAIN_REPO}/worktree"; then exit 0; fi
-  if is_under "${FP}" "${MAIN_REPO}/repos";    then exit 0; fi
-  if is_under "${FP}" "${MAIN_REPO}";           then exit 0; fi
+  if is_under "${FP}" "${HARNESS_ROOT}"; then exit 0; fi
 
   deny "Access outside repository root blocked: ${FP}. Use repos/ for base clones and worktree/ for active worktrees (see .claude/skills/parallel-worktree/SKILL.md)."
 }
