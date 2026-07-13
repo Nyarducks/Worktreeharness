@@ -6,8 +6,6 @@ A framework for worktree-driven multi-repository development. Manages base clone
 
 > **Never edit `repos/` directly**: `repos/` holds bare base clones. Always create a worktree via `scripts/create-worktree.sh <owner>/<repo> <branch>` before making any changes.
 
-> **Never use `cd` to navigate into repositories**: Use `git -C <path>` for git commands and absolute paths for all file operations. `cd` causes CWD drift which breaks relative-path hooks.
-
 ---
 
 ## Directory Layout
