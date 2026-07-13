@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/restrict-to-repo-root.sh"
+            "command": "bash -c 'MAIN=$(git worktree list --porcelain 2>/dev/null | grep -m1 \"^worktree \" | cut -d\" \" -f2); [ -z \"$MAIN\" ] && exit 0; exec bash \"$(dirname \"$(dirname \"$MAIN\")\")/.claude/hooks/restrict-to-repo-root.sh\"'"
           }
         ]
       },
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/guard-writes-to-worktree.sh"
+            "command": "bash -c 'MAIN=$(git worktree list --porcelain 2>/dev/null | grep -m1 \"^worktree \" | cut -d\" \" -f2); [ -z \"$MAIN\" ] && exit 0; exec bash \"$(dirname \"$(dirname \"$MAIN\")\")/.claude/hooks/guard-writes-to-worktree.sh\"'"
           }
         ]
       }
