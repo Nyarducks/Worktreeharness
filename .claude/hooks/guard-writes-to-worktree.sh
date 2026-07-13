@@ -9,17 +9,12 @@ deny() {
 }
 
 # Output variable: MAIN_REPO
+# Derive harness root from this script's own path: <HARNESS>/.claude/hooks/<script>
+# Two dirname calls navigate up to the harness root — no CWD or env var dependency.
 resolve_main_repo() {
-  if [[ -n "${WORKTREE_LAB_DIR:-}" ]]; then
-    if [[ ! -d "${WORKTREE_LAB_DIR}" ]]; then
-      deny "Write blocked: WORKTREE_LAB_DIR=${WORKTREE_LAB_DIR} is invalid (directory not found). Fix the env var or unset it to use auto-detection."
-    fi
-    MAIN_REPO="${WORKTREE_LAB_DIR}"
-    return
-  fi
-  MAIN_REPO="$(git worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')"
-  if [[ -z "${MAIN_REPO}" ]]; then
-    deny "Write blocked: could not determine repository root. Create a worktree under worktree/ first (see .claude/skills/parallel-worktree/SKILL.md)."
+  MAIN_REPO="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
+  if [[ -z "${MAIN_REPO}" || ! -d "${MAIN_REPO}" ]]; then
+    deny "Write blocked: could not determine harness root from hook path ($0). Expected layout: <root>/.claude/hooks/<hook>."
   fi
 }
 
