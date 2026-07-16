@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^apply_patch$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/guard-writes-to-worktree.sh\"",
+            "timeout": 30,
+            "statusMessage": "Checking worktree write policy"
+          }
+        ]
+      }
+    ]
+  }
+}
