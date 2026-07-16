@@ -24,6 +24,7 @@ Create the repository plus these tracked paths:
 .codex/skills/
 .codex/hooks.json
 .codex/hooks/guard-writes-to-worktree.sh
+.codex/hooks/restrict-to-harness-root.sh
 scripts/hooks/
 scripts/setup-repo.sh
 scripts/create-worktree.sh
@@ -32,7 +33,7 @@ repos/
 worktree/
 ```
 
-Copy the harness scripts, `.codex/hooks.json`, `.codex/hooks/guard-writes-to-worktree.sh`, and the required `.codex/skills/*/SKILL.md` files from this repository. Make shell scripts executable, install Git hooks with `scripts/setup-hooks.sh`, and add `repos/`, `tmp/`, and `worktree/` to `.gitignore`.
+Copy the harness scripts, `.codex/hooks.json`, both files in `.codex/hooks/`, and the required `.codex/skills/*/SKILL.md` files from this repository. Make shell scripts executable, install Git hooks with `scripts/setup-hooks.sh`, and add `repos/`, `tmp/`, and `worktree/` to `.gitignore`.
 
 Add a repository instruction file that states these invariants:
 
