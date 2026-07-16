@@ -35,7 +35,7 @@ worktree/
 
 Copy the harness scripts, `.codex/hooks.json`, both files in `.codex/hooks/`, and the required `.codex/skills/*/SKILL.md` files from this repository. Make shell scripts executable, install Git hooks with `scripts/setup-hooks.sh`, and add `repos/`, `tmp/`, and `worktree/` to `.gitignore`.
 
-Add a repository instruction file that states these invariants:
+Add an `AGENTS.md` file that states these invariants:
 
 - Create or resume a worktree before every code change.
 - Make code changes only under `worktree/`.
