@@ -8,3 +8,16 @@ worktree/
 !.claude/skills/parallel-worktree
 !.claude/skills/pr-review-fix
 !.claude/skills/setup-harness
+
+# Ignore locally-added Codex skills; track the harness-provided skills only
+.codex/skills/*
+!.codex/skills/git-operations/
+!.codex/skills/git-operations/**
+!.codex/skills/parallel-worktree/
+!.codex/skills/parallel-worktree/**
+!.codex/skills/pr-review-fix/
+!.codex/skills/pr-review-fix/**
+!.codex/skills/setup-harness/
+!.codex/skills/setup-harness/**
+!.codex/skills/workflow-shell-test/
+!.codex/skills/workflow-shell-test/**
