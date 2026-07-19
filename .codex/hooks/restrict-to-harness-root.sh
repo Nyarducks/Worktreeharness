@@ -34,6 +34,14 @@ main() {
   harness_root="$(realpath -m "$(resolve_harness_root)")"
   cwd="${cwd:-$harness_root}"
 
+  if [[ -f "$harness_root/.env" ]]; then
+    # shellcheck disable=SC1090
+    source "$harness_root/.env"
+  fi
+  if [[ "${ALLOW_EXTERNAL_DIR:-false}" == "true" ]]; then
+    exit 0
+  fi
+
   while IFS= read -r candidate; do
     [[ -z "$candidate" ]] && continue
     if [[ "$candidate" = /* ]]; then

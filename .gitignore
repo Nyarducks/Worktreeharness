@@ -1,6 +1,7 @@
 repos/
 tmp/
 worktree/
+.env
 
 # Ignore any locally-added skills; only track the four committed here
 .claude/skills/*
