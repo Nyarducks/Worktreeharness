@@ -70,6 +70,11 @@ update_repo() {
   fi
   echo "Updating ${REPO_NAME} ..." >&2
   git -C "${REPO_PATH}" fetch origin main >&2
+  # A bare base clone has no work tree to pull into; the fetch above already
+  # refreshed origin/main, which is all create-worktree.sh consumes.
+  if [[ "$(git -C "${REPO_PATH}" rev-parse --is-bare-repository)" == "true" ]]; then
+    return
+  fi
   git -C "${REPO_PATH}" pull --ff-only origin main >&2
 }
 
@@ -86,7 +91,9 @@ main() {
 
   local REPO_PATH="${LAB_DIR}/repos/${REPO_NAME}"
 
-  if [[ ! -d "${REPO_PATH}/.git" ]]; then
+  # A base clone is either a normal checkout (.git directory) or a bare
+  # repository (HEAD file at the top level).
+  if [[ ! -d "${REPO_PATH}/.git" && ! -f "${REPO_PATH}/HEAD" ]]; then
     clone_repo "${REPO_PATH}"
   else
     update_repo "${REPO_PATH}"
