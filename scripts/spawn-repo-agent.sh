@@ -44,10 +44,19 @@ wait_for_agent_idle() {
   done
 }
 
-# resolve_worker_model <harness_root>
-# Reads HERDR_WORKER_MODEL from .env (default: inherit) and prints a
-# " --model <value>" suffix to append to the sub-agent's launch command, or
-# an empty string to launch with no --model flag (claude's own default).
+# ensure_trusted_workspace <worktree_path>
+# Automatically adds the worktree directory to ~/.gemini/antigravity-cli/settings.json's
+# trustedWorkspaces list so agy does not prompt for workspace confirmation.
+ensure_trusted_workspace() {
+  local worktree_path="$1"
+  local settings_file="${HOME}/.gemini/antigravity-cli/settings.json"
+  if [[ -f "${settings_file}" ]] && command -v jq >/dev/null 2>&1; then
+    jq --arg path "${worktree_path}" '
+      .trustedWorkspaces = ((.trustedWorkspaces // []) + [$path] | unique)
+    ' "${settings_file}" > "${settings_file}.tmp" 2>/dev/null && mv "${settings_file}.tmp" "${settings_file}" 2>/dev/null || true
+  fi
+}
+
 # resolve_agent_cmd <harness_root>
 # Resolves the agent launch command (claude or agy) and model arguments based on
 # HERDR_AGENT_CLI, HERDR_WORKER_MODEL_CLAUDE, HERDR_WORKER_MODEL_AGY, or HERDR_WORKER_MODEL.
@@ -165,6 +174,8 @@ main() {
     "${script_dir}/create-worktree.sh" "${repo_arg}" "${branch_name}" >&2
   fi
 
+  ensure_trusted_workspace "${worktree_path}"
+
   local pane_id existing_pane
   existing_pane="$(find_existing_pane "${worktree_path}")"
 
@@ -197,9 +208,9 @@ main() {
     pane_id="$(jq -r '.result.root_pane.pane_id' <<< "${tab_json}")"
     [[ -n "${pane_id}" && "${pane_id}" != "null" ]] || { echo "Error: could not read pane_id from herdr tab create output." >&2; exit 1; }
 
-    local model_flag
-    model_flag="$(resolve_worker_model "${harness_root}")"
-    herdr pane run "${pane_id}" "claude --permission-mode auto${model_flag}" >&2
+    local agent_cmd
+    agent_cmd="$(resolve_agent_cmd "${harness_root}")"
+    herdr pane run "${pane_id}" "cd ${worktree_path} && ${agent_cmd}" >&2
     wait_for_agent_idle "${pane_id}"
   fi
 
