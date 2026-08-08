@@ -66,9 +66,9 @@ resolve_worker_model() {
   local worker_model="${HERDR_WORKER_MODEL:-inherit}"
 
   if [[ "${worker_model}" != "inherit" ]]; then
-    printf ' --model %s' "${worker_model}"
+    printf ' --model %q' "${worker_model}"
   elif [[ -n "${HERDR_ORCH_MODEL:-}" ]]; then
-    printf ' --model %s' "${HERDR_ORCH_MODEL}"
+    printf ' --model %q' "${HERDR_ORCH_MODEL}"
   fi
 }
 
