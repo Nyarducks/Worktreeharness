@@ -6,6 +6,8 @@ A framework for worktree-driven multi-repository development. Manages base clone
 
 > **Never edit `repos/` directly**: `repos/` holds bare base clones. Always create a worktree via `scripts/create-worktree.sh <owner>/<repo> <branch>` before making any changes.
 
+The repository-local Claude Code hooks enforce the write boundary for `Edit`/`Write`, and reject `Read`/`Bash` paths outside the harness root. Set `ALLOWED_EXT_DIRS` in `.env` (e.g. `~/.claude,/tmp`) to scope access to specific external directories — access outside the harness root is enabled precisely when this list is non-empty, and only for the listed paths; there is no separate switch to bypass the restriction entirely. Regardless of this setting, recursive `rm` targeting `$HOME`, `/`, or another critical directory is always blocked — see `scripts/lib/rm-guard.sh`.
+
 ---
 
 ## Directory Layout
