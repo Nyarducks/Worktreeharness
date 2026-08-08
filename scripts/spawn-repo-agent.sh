@@ -44,31 +44,53 @@ wait_for_agent_idle() {
   done
 }
 
-# resolve_worker_model <harness_root>
-# Reads HERDR_WORKER_MODEL from .env (default: inherit) and prints a
-# " --model <value>" suffix to append to the sub-agent's launch command, or
-# an empty string to launch with no --model flag (claude's own default).
-#
-# "inherit" cannot be resolved by this script alone — there is no env var
-# exposing "which model is the currently-running orchestrator session using"
-# to a plain Bash process (checked: not in `env`, no `claude config get`).
-# Only the Orchestrator (the model itself, via its own system prompt) knows
-# that, so on "inherit" this falls back to $HERDR_ORCH_MODEL, which the
-# Orchestrator is expected to export with its own model id before calling
-# this script (see .claude/skills/herdr-dispatch). If neither is set, no
-# --model flag is passed at all.
-resolve_worker_model() {
+# ensure_trusted_workspace <worktree_path>
+# Automatically adds the worktree directory to ~/.gemini/antigravity-cli/settings.json's
+# trustedWorkspaces list so agy does not prompt for workspace confirmation.
+ensure_trusted_workspace() {
+  local worktree_path="$1"
+  local settings_file="${HOME}/.gemini/antigravity-cli/settings.json"
+  if [[ -f "${settings_file}" ]] && command -v jq >/dev/null 2>&1; then
+    jq --arg path "${worktree_path}" '
+      .trustedWorkspaces = ((.trustedWorkspaces // []) + [$path] | unique)
+    ' "${settings_file}" > "${settings_file}.tmp" 2>/dev/null && mv "${settings_file}.tmp" "${settings_file}" 2>/dev/null || true
+  fi
+}
+
+# resolve_agent_cmd <harness_root>
+# Resolves the agent launch command (claude or agy) and model arguments based on
+# HERDR_AGENT_CLI or the model name (Gemini models select agy, Claude models select claude).
+resolve_agent_cmd() {
   local harness_root="$1"
   if [[ -f "${harness_root}/.env" ]]; then
     # shellcheck disable=SC1091
-    source "${harness_root}/.env"
+    source "${harness_root}/.env" 2>/dev/null || true
   fi
   local worker_model="${HERDR_WORKER_MODEL:-inherit}"
+  local resolved_model=""
 
   if [[ "${worker_model}" != "inherit" ]]; then
-    printf ' --model %s' "${worker_model}"
+    resolved_model="${worker_model}"
   elif [[ -n "${HERDR_ORCH_MODEL:-}" ]]; then
-    printf ' --model %s' "${HERDR_ORCH_MODEL}"
+    resolved_model="${HERDR_ORCH_MODEL}"
+  fi
+
+  local lower_model
+  lower_model="$(echo "${resolved_model}" | tr '[:upper:]' '[:lower:]')"
+  local explicit_cli="${HERDR_AGENT_CLI:-}"
+
+  local cli_binary="claude"
+  local base_flags="--permission-mode auto"
+
+  if [[ "${explicit_cli}" == "agy" || "${explicit_cli}" == "antigravity" || "${lower_model}" == *gemini* ]]; then
+    cli_binary="agy"
+    base_flags="--dangerously-skip-permissions"
+  fi
+
+  if [[ -n "${resolved_model}" && "${resolved_model}" != "inherit" ]]; then
+    printf '%s %s --model %q' "${cli_binary}" "${base_flags}" "${resolved_model}"
+  else
+    printf '%s %s' "${cli_binary}" "${base_flags}"
   fi
 }
 
@@ -133,6 +155,8 @@ main() {
     "${script_dir}/create-worktree.sh" "${repo_arg}" "${branch_name}" >&2
   fi
 
+  ensure_trusted_workspace "${worktree_path}"
+
   local pane_id existing_pane
   existing_pane="$(find_existing_pane "${worktree_path}")"
 
@@ -165,9 +189,9 @@ main() {
     pane_id="$(jq -r '.result.root_pane.pane_id' <<< "${tab_json}")"
     [[ -n "${pane_id}" && "${pane_id}" != "null" ]] || { echo "Error: could not read pane_id from herdr tab create output." >&2; exit 1; }
 
-    local model_flag
-    model_flag="$(resolve_worker_model "${harness_root}")"
-    herdr pane run "${pane_id}" "claude --permission-mode auto${model_flag}" >&2
+    local agent_cmd
+    agent_cmd="$(resolve_agent_cmd "${harness_root}")"
+    herdr pane run "${pane_id}" "cd ${worktree_path} && ${agent_cmd}" >&2
     wait_for_agent_idle "${pane_id}"
   fi
 
