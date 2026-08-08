@@ -142,14 +142,31 @@ Requires the herdr CLI and an active herdr session (`$HERDR_ENV=1`).
 
 ## Guard hooks
 
-Two `PreToolUse` hooks run automatically inside Claude Code:
+Three `PreToolUse` hooks run automatically inside Claude Code:
 
 | Hook | Triggers on | Effect |
 |---|---|---|
-| `guard-writes-to-worktree.sh` | `Edit`, `Write` | Denies any write outside `worktree/` |
-| `restrict-to-repo-root.sh` | `Read` | Denies reads outside the harness root, `worktree/`, and `repos/` |
+| `guard-writes-to-worktree.sh` | `Edit`, `Write` | Denies any write outside `worktree/` (unless the target is under `ALLOWED_EXT_DIRS`) |
+| `restrict-to-repo-root.sh` | `Read` | Denies reads outside the harness root, `worktree/`, and `repos/` (unless under `ALLOWED_EXT_DIRS`) |
+| `guard-bash-commands.sh` | `Bash` | Blocks dangerous `rm` commands unconditionally, and restricts other paths to the harness root or `ALLOWED_EXT_DIRS` |
 
-These are configured in `.claude/settings.json` and require no manual activation.
+The Codex equivalents (`.codex/hooks/restrict-to-harness-root.sh`, `.codex/hooks/guard-writes-to-worktree.sh`) enforce the same policy for Codex sessions. All of them share `scripts/lib/rm-guard.sh` for the rm safety net and the `ALLOWED_EXT_DIRS` allowlist logic.
+
+These are configured in `.claude/settings.json` / `.codex/hooks.json` and require no manual activation.
+
+### Allowing access outside the harness root
+
+By default every hook confines Read/Write/Bash access to the harness root (`repos/`, `worktree/`, and the harness's own tracked files). To let commands and file operations reach specific external directories — e.g. Claude Code's own config at `~/.claude`, or scratch files under `/tmp` — copy `.env.sample` to `.env` and set:
+
+```bash
+ALLOWED_EXT_DIRS=~/.claude,/tmp
+```
+
+`.env` is gitignored; this is a local, per-machine setting. External access is enabled precisely when `ALLOWED_EXT_DIRS` is non-empty, and only for the listed paths — there is no separate flag to bypass the harness-root restriction entirely.
+
+### rm safety net
+
+Independently of `ALLOWED_EXT_DIRS` every hook unconditionally blocks recursive `rm` commands (`rm -rf`, `sudo rm -r`, etc.) whose target resolves to `$HOME`, `/`, an ancestor of `$HOME` (e.g. `/home`), or another critical top-level directory (`/etc`, `/usr`, `/var`, ...), including glob forms like `rm -rf ~/*` that would wipe a directory's contents. This guards against an accidental `rm -rf ~` or `rm -rf /` — especially important when running Claude Code with `--dangerously-skip-permissions`, where hooks are the only remaining safety net.
 
 ---
 
