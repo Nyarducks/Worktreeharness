@@ -54,11 +54,12 @@ find_existing_pane() {
 }
 
 build_message() {
-  local repo_name="$1" branch_name="$2" worktree_path="$3" orchestrator_pane="$4" task_text="$5"
+  local repo_name="$1" branch_name="$2" worktree_path="$3" orchestrator_pane="$4" task_text="$5" self_pane="$6"
   cat <<MSG
 [ORCHESTRATOR TASK]
 You were spawned via herdr for repo ${repo_name} on branch ${branch_name} (worktree: ${worktree_path}).
 Orchestrator herdr pane: ${orchestrator_pane}
+Your own herdr pane (use this literal value as "from=" below, do not use \$HERDR_PANE_ID — see note): ${self_pane}
 
 Task:
 ${task_text}
@@ -66,15 +67,16 @@ ${task_text}
 Rules:
 - Work only inside this worktree, following this repo's own CLAUDE.md/AGENTS.md and skill conventions.
 - IMPORTANT: \`herdr agent send\` only types text into the target pane's input box — it does NOT submit it. Every message below must be followed by \`herdr pane send-keys ${orchestrator_pane} Enter\` (as a separate command, with at least ~1s in between) or the Orchestrator will never see it.
+- IMPORTANT: use the literal pane id ${self_pane} in the commands below, not a \$HERDR_PANE_ID shell expansion — even under --permission-mode auto, a command containing shell variable expansion still triggers a manual approval prompt (confirmed live), while the same command with a literal value does not.
 - If this task needs changes in a DIFFERENT repository, do NOT edit that repository yourself. Instead run:
-    herdr agent send ${orchestrator_pane} "[CROSS-REPO-REQUEST] repo=<owner/repo> branch=<suggested-branch> from=\$HERDR_PANE_ID task=<description>"
+    herdr agent send ${orchestrator_pane} "[CROSS-REPO-REQUEST] repo=<owner/repo> branch=<suggested-branch> from=${self_pane} task=<description>"
     sleep 1 && herdr pane send-keys ${orchestrator_pane} Enter
   and continue your own work — never spawn other repos' agents yourself.
 - When you finish, run:
-    herdr agent send ${orchestrator_pane} "[TASK-DONE] from=\$HERDR_PANE_ID summary=<one paragraph>"
+    herdr agent send ${orchestrator_pane} "[TASK-DONE] from=${self_pane} summary=<one paragraph>"
     sleep 1 && herdr pane send-keys ${orchestrator_pane} Enter
 - If you get stuck and need a human, run:
-    herdr agent send ${orchestrator_pane} "[TASK-BLOCKED] from=\$HERDR_PANE_ID reason=<why>"
+    herdr agent send ${orchestrator_pane} "[TASK-BLOCKED] from=${self_pane} reason=<why>"
     sleep 1 && herdr pane send-keys ${orchestrator_pane} Enter
 MSG
 }
@@ -120,22 +122,26 @@ main() {
     # agent via the globally-installed SessionStart hook, so it's fully
     # addressable by pane_id afterwards regardless of how it was started.
     #
-    # --permission-mode acceptEdits (not --dangerously-skip-permissions)
-    # for the same classifier reason. This means the sub-agent may still
-    # pause on non-edit actions (e.g. git push, gh pr create) waiting for
-    # approval — watch for agent_status "blocked" via `herdr agent wait`,
-    # not just "idle".
+    # --permission-mode auto, not --dangerously-skip-permissions (bypasses
+    # ALL safety checks, including its own one-time "bypass permissions"
+    # confirmation dialog on first launch) and not acceptEdits (every
+    # non-edit Bash command — including the sub-agent's own herdr agent
+    # send/pane send-keys reporting-back calls — needs manual approval
+    # under acceptEdits, confirmed live). auto mode keeps its own
+    # classifier as a safety net (the same one that denies the Orchestrator
+    # spawning further agents via `agent start`) without that per-command
+    # approval friction, and needs no confirmation dialog on launch.
     local tab_json
     tab_json="$(herdr tab create --cwd "${worktree_path}" --label "${agent_name}" --env "HERDR_ORCH_PANE=${HERDR_PANE_ID}" --no-focus)"
     echo "${tab_json}" >&2
     pane_id="$(jq -r '.result.root_pane.pane_id' <<< "${tab_json}")"
     [[ -n "${pane_id}" && "${pane_id}" != "null" ]] || { echo "Error: could not read pane_id from herdr tab create output." >&2; exit 1; }
-    herdr pane run "${pane_id}" "claude --permission-mode acceptEdits" >&2
+    herdr pane run "${pane_id}" "claude --permission-mode auto" >&2
     wait_for_agent_idle "${pane_id}"
   fi
 
   local message
-  message="$(build_message "${repo_name}" "${branch_name}" "${worktree_path}" "${HERDR_PANE_ID}" "${task_text}")"
+  message="$(build_message "${repo_name}" "${branch_name}" "${worktree_path}" "${HERDR_PANE_ID}" "${task_text}" "${pane_id}")"
   herdr agent send "${pane_id}" "${message}" >&2
   # agent send only types the text — it does not submit it. A large paste
   # (this message is long) takes a moment to land in the input box before
