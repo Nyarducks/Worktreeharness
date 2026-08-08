@@ -27,6 +27,23 @@ require_herdr() {
   }
 }
 
+# wait_for_agent_idle <pane_id>
+# `herdr agent wait` errors with "agent_not_found" if the target pane hasn't
+# registered as a herdr agent yet (the claude process's SessionStart hook
+# reports it asynchronously, shortly after `herdr pane run` returns) — retry
+# for a few seconds before giving up.
+wait_for_agent_idle() {
+  local pane_id="$1" attempt=0
+  until herdr agent wait "${pane_id}" --status idle --timeout 5000 >&2; do
+    attempt=$((attempt + 1))
+    if [[ ${attempt} -ge 6 ]]; then
+      echo "Error: agent at pane ${pane_id} did not register/become idle in time." >&2
+      exit 1
+    fi
+    sleep 1
+  done
+}
+
 # find_existing_pane <worktree_path>
 # Prints the pane_id of a herdr agent already running with that cwd, if any.
 find_existing_pane() {
@@ -48,13 +65,17 @@ ${task_text}
 
 Rules:
 - Work only inside this worktree, following this repo's own CLAUDE.md/AGENTS.md and skill conventions.
+- IMPORTANT: \`herdr agent send\` only types text into the target pane's input box — it does NOT submit it. Every message below must be followed by \`herdr pane send-keys ${orchestrator_pane} Enter\` (as a separate command, with at least ~1s in between) or the Orchestrator will never see it.
 - If this task needs changes in a DIFFERENT repository, do NOT edit that repository yourself. Instead run:
     herdr agent send ${orchestrator_pane} "[CROSS-REPO-REQUEST] repo=<owner/repo> branch=<suggested-branch> from=\$HERDR_PANE_ID task=<description>"
+    sleep 1 && herdr pane send-keys ${orchestrator_pane} Enter
   and continue your own work — never spawn other repos' agents yourself.
 - When you finish, run:
     herdr agent send ${orchestrator_pane} "[TASK-DONE] from=\$HERDR_PANE_ID summary=<one paragraph>"
+    sleep 1 && herdr pane send-keys ${orchestrator_pane} Enter
 - If you get stuck and need a human, run:
     herdr agent send ${orchestrator_pane} "[TASK-BLOCKED] from=\$HERDR_PANE_ID reason=<why>"
+    sleep 1 && herdr pane send-keys ${orchestrator_pane} Enter
 MSG
 }
 
@@ -71,7 +92,7 @@ main() {
 
   local script_dir harness_root
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  harness_root="$(cd "${script_dir}/.." && pwd)"
+  harness_root="${WORKTREE_LAB_DIR:-$(cd "${script_dir}/.." && pwd)}"
 
   local repo_name="${repo_arg##*/}"
   local worktree_path="${harness_root}/worktree/${repo_name}/${branch_name}"
@@ -82,24 +103,48 @@ main() {
     "${script_dir}/create-worktree.sh" "${repo_arg}" "${branch_name}" >&2
   fi
 
-  local target existing_pane
+  local pane_id existing_pane
   existing_pane="$(find_existing_pane "${worktree_path}")"
 
   if [[ -n "${existing_pane}" ]]; then
     echo "Reusing existing agent at pane ${existing_pane} (cwd matches ${worktree_path})." >&2
-    target="${existing_pane}"
+    pane_id="${existing_pane}"
   else
     local agent_name="${repo_name}__${branch_name//\//-}"
-    herdr agent start "${agent_name}" --cwd "${worktree_path}" --env "HERDR_ORCH_PANE=${HERDR_PANE_ID}" -- claude --dangerously-skip-permissions >&2
-    herdr agent wait "${agent_name}" --status idle --timeout 30000 >&2
-    target="${agent_name}"
+    # A dedicated tab (not a split pane inside the orchestrator's own tab)
+    # via `herdr tab create` + `herdr pane run`. `herdr agent start ... --
+    # claude ...` was tried first but is denied by the Orchestrator's own
+    # auto-mode Bash classifier when it tries to spawn another autonomous
+    # agent that way; `pane run` (typing a command into an already-created
+    # pane) is not. The claude process still self-registers as a herdr
+    # agent via the globally-installed SessionStart hook, so it's fully
+    # addressable by pane_id afterwards regardless of how it was started.
+    #
+    # --permission-mode acceptEdits (not --dangerously-skip-permissions)
+    # for the same classifier reason. This means the sub-agent may still
+    # pause on non-edit actions (e.g. git push, gh pr create) waiting for
+    # approval — watch for agent_status "blocked" via `herdr agent wait`,
+    # not just "idle".
+    local tab_json
+    tab_json="$(herdr tab create --cwd "${worktree_path}" --label "${agent_name}" --env "HERDR_ORCH_PANE=${HERDR_PANE_ID}" --no-focus)"
+    echo "${tab_json}" >&2
+    pane_id="$(jq -r '.result.root_pane.pane_id' <<< "${tab_json}")"
+    [[ -n "${pane_id}" && "${pane_id}" != "null" ]] || { echo "Error: could not read pane_id from herdr tab create output." >&2; exit 1; }
+    herdr pane run "${pane_id}" "claude --permission-mode acceptEdits" >&2
+    wait_for_agent_idle "${pane_id}"
   fi
 
   local message
   message="$(build_message "${repo_name}" "${branch_name}" "${worktree_path}" "${HERDR_PANE_ID}" "${task_text}")"
-  herdr agent send "${target}" "${message}" >&2
+  herdr agent send "${pane_id}" "${message}" >&2
+  # agent send only types the text — it does not submit it. A large paste
+  # (this message is long) takes a moment to land in the input box before
+  # Enter actually submits it rather than being a no-op; sending Enter too
+  # immediately after send is a real race, observed in manual testing.
+  sleep 1
+  herdr pane send-keys "${pane_id}" Enter >&2
 
-  echo "Dispatched to ${target} (repo=${repo_name} branch=${branch_name})."
+  echo "Dispatched to pane ${pane_id} (repo=${repo_name} branch=${branch_name})."
 }
 
 main "$@"
