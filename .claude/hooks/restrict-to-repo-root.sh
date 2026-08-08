@@ -4,7 +4,7 @@ set -uo pipefail
 
 deny() {
   local MSG="$1"
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' "${MSG}"
+  jq -n --arg reason "${MSG}" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$reason}}'
   exit 0
 }
 
@@ -28,7 +28,17 @@ main() {
 
   if is_under "${FP}" "${HARNESS_ROOT}"; then exit 0; fi
 
-  deny "Access outside repository root blocked: ${FP}. Use repos/ for base clones and worktree/ for active worktrees (see .claude/skills/parallel-worktree/SKILL.md)."
+  # shellcheck disable=SC1091
+  source "${HARNESS_ROOT}/scripts/lib/rm-guard.sh" 2>/dev/null
+  if declare -F load_allowed_ext_dirs >/dev/null; then
+    local ALLOWED_DIRS
+    ALLOWED_DIRS="$(load_allowed_ext_dirs "${HARNESS_ROOT}")"
+    if [[ -n "${ALLOWED_DIRS}" ]] && ext_dir_is_allowed "${FP}" "${ALLOWED_DIRS}"; then
+      exit 0
+    fi
+  fi
+
+  deny "Access outside repository root blocked: ${FP}. Use repos/ for base clones and worktree/ for active worktrees, or add this path to ALLOWED_EXT_DIRS in .env (see .claude/skills/parallel-worktree/SKILL.md)."
 }
 
 main

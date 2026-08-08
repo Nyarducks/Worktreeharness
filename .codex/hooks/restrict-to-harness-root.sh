@@ -3,7 +3,7 @@ set -euo pipefail
 
 deny() {
   local reason="$1"
-  printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"'"${reason}"'"}}'
+  jq -n --arg reason "$reason" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$reason}}'
 }
 
 resolve_harness_root() {
@@ -34,12 +34,31 @@ main() {
   harness_root="$(realpath -m "$(resolve_harness_root)")"
   cwd="${cwd:-$harness_root}"
 
+  # shellcheck disable=SC1091
+  source "$harness_root/scripts/lib/rm-guard.sh" 2>/dev/null || true
+
+  # Always-on safety net: never allow a recursive rm on $HOME, /, or another
+  # critical directory, even when ALLOW_EXTERNAL_DIR=true.
+  if declare -F rm_guard_dangerous_reason > /dev/null; then
+    local rm_reason
+    rm_reason="$(rm_guard_dangerous_reason "$command" "$cwd")"
+    if [[ -n "$rm_reason" ]]; then
+      deny "$rm_reason"
+      exit 0
+    fi
+  fi
+
   if [[ -f "$harness_root/.env" ]]; then
     # shellcheck disable=SC1090
     source "$harness_root/.env"
   fi
   if [[ "${ALLOW_EXTERNAL_DIR:-false}" == "true" ]]; then
     exit 0
+  fi
+
+  local allowed_dirs=""
+  if declare -F load_allowed_ext_dirs > /dev/null; then
+    allowed_dirs="$(load_allowed_ext_dirs "$harness_root")"
   fi
 
   while IFS= read -r candidate; do
@@ -54,7 +73,10 @@ main() {
       continue
     fi
     if [[ "$target" != "$harness_root" && "$target" != "$harness_root/"* ]]; then
-      deny "Access outside harness root blocked: ${target}. Use repos/ for base clones and worktree/ for active worktrees."
+      if [[ -n "$allowed_dirs" ]] && ext_dir_is_allowed "$target" "$allowed_dirs"; then
+        continue
+      fi
+      deny "Access outside harness root blocked: ${target}. Use repos/ for base clones and worktree/ for active worktrees, or add this path to ALLOWED_EXT_DIRS in .env."
       exit 0
     fi
   done < <(
