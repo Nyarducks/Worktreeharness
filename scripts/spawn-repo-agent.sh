@@ -59,32 +59,51 @@ ensure_trusted_workspace() {
 
 # resolve_agent_cmd <harness_root>
 # Resolves the agent launch command (claude or agy) and model arguments based on
-# HERDR_AGENT_CLI or the model name (Gemini models select agy, Claude models select claude).
+# HERDR_AGENT_CLI, HERDR_WORKER_MODEL_CLAUDE, HERDR_WORKER_MODEL_AGY, or HERDR_WORKER_MODEL.
 resolve_agent_cmd() {
   local harness_root="$1"
   if [[ -f "${harness_root}/.env" ]]; then
     # shellcheck disable=SC1091
     source "${harness_root}/.env" 2>/dev/null || true
   fi
-  local worker_model="${HERDR_WORKER_MODEL:-inherit}"
-  local resolved_model=""
 
-  if [[ "${worker_model}" != "inherit" ]]; then
-    resolved_model="${worker_model}"
-  elif [[ -n "${HERDR_ORCH_MODEL:-}" ]]; then
-    resolved_model="${HERDR_ORCH_MODEL}"
-  fi
-
-  local lower_model
-  lower_model="$(echo "${resolved_model}" | tr '[:upper:]' '[:lower:]')"
-  local explicit_cli="${HERDR_AGENT_CLI:-}"
-
+  local explicit_cli="${HERDR_AGENT_CLI:-auto}"
+  local orch_cli="${HERDR_ORCH_CLI:-}"
   local cli_binary="claude"
   local base_flags="--permission-mode auto"
 
-  if [[ "${explicit_cli}" == "agy" || "${explicit_cli}" == "antigravity" || "${lower_model}" == *gemini* ]]; then
+  # 1. Determine CLI runner (claude vs agy)
+  if [[ "${explicit_cli}" == "agy" || "${explicit_cli}" == "antigravity" ]]; then
     cli_binary="agy"
     base_flags="--dangerously-skip-permissions"
+  elif [[ "${explicit_cli}" == "claude" ]]; then
+    cli_binary="claude"
+    base_flags="--permission-mode auto"
+  else
+    local orch_model_lower
+    orch_model_lower="$(echo "${HERDR_ORCH_MODEL:-}" | tr '[:upper:]' '[:lower:]')"
+    if [[ "${orch_cli}" == "agy" || "${orch_cli}" == "antigravity" || "${orch_model_lower}" == *gemini* ]]; then
+      cli_binary="agy"
+      base_flags="--dangerously-skip-permissions"
+    else
+      cli_binary="claude"
+      base_flags="--permission-mode auto"
+    fi
+  fi
+
+  # 2. Determine Worker Model based on chosen CLI runner
+  local raw_model="inherit"
+  if [[ "${cli_binary}" == "agy" ]]; then
+    raw_model="${HERDR_WORKER_MODEL_AGY:-${HERDR_WORKER_MODEL:-inherit}}"
+  else
+    raw_model="${HERDR_WORKER_MODEL_CLAUDE:-${HERDR_WORKER_MODEL:-inherit}}"
+  fi
+
+  local resolved_model=""
+  if [[ "${raw_model}" != "inherit" ]]; then
+    resolved_model="${raw_model}"
+  elif [[ -n "${HERDR_ORCH_MODEL:-}" ]]; then
+    resolved_model="${HERDR_ORCH_MODEL}"
   fi
 
   if [[ -n "${resolved_model}" && "${resolved_model}" != "inherit" ]]; then
