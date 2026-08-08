@@ -44,6 +44,34 @@ wait_for_agent_idle() {
   done
 }
 
+# resolve_worker_model <harness_root>
+# Reads HERDR_WORKER_MODEL from .env (default: inherit) and prints a
+# " --model <value>" suffix to append to the sub-agent's launch command, or
+# an empty string to launch with no --model flag (claude's own default).
+#
+# "inherit" cannot be resolved by this script alone — there is no env var
+# exposing "which model is the currently-running orchestrator session using"
+# to a plain Bash process (checked: not in `env`, no `claude config get`).
+# Only the Orchestrator (the model itself, via its own system prompt) knows
+# that, so on "inherit" this falls back to $HERDR_ORCH_MODEL, which the
+# Orchestrator is expected to export with its own model id before calling
+# this script (see .claude/skills/herdr-dispatch). If neither is set, no
+# --model flag is passed at all.
+resolve_worker_model() {
+  local harness_root="$1"
+  if [[ -f "${harness_root}/.env" ]]; then
+    # shellcheck disable=SC1091
+    source "${harness_root}/.env"
+  fi
+  local worker_model="${HERDR_WORKER_MODEL:-inherit}"
+
+  if [[ "${worker_model}" != "inherit" ]]; then
+    printf ' --model %s' "${worker_model}"
+  elif [[ -n "${HERDR_ORCH_MODEL:-}" ]]; then
+    printf ' --model %s' "${HERDR_ORCH_MODEL}"
+  fi
+}
+
 # find_existing_pane <worktree_path>
 # Prints the pane_id of a herdr agent already running with that cwd, if any.
 find_existing_pane() {
@@ -136,7 +164,10 @@ main() {
     echo "${tab_json}" >&2
     pane_id="$(jq -r '.result.root_pane.pane_id' <<< "${tab_json}")"
     [[ -n "${pane_id}" && "${pane_id}" != "null" ]] || { echo "Error: could not read pane_id from herdr tab create output." >&2; exit 1; }
-    herdr pane run "${pane_id}" "claude --permission-mode auto" >&2
+
+    local model_flag
+    model_flag="$(resolve_worker_model "${harness_root}")"
+    herdr pane run "${pane_id}" "claude --permission-mode auto${model_flag}" >&2
     wait_for_agent_idle "${pane_id}"
   fi
 

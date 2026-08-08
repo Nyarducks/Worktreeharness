@@ -136,6 +136,8 @@ scripts/spawn-repo-agent.sh <owner>/<repo> feat/<topic> -- "<task description>"
 
 Dispatched agents report cross-repo needs and completion back to the Orchestrator via `herdr agent send`, using `[CROSS-REPO-REQUEST]` / `[TASK-DONE]` / `[TASK-BLOCKED]` prefixes (see `.claude/skills/herdr-dispatch/SKILL.md`) rather than spawning further agents themselves — the Orchestrator is the single place that dispatches repos, which avoids duplicate worktrees on the same repo+branch.
 
+Worker agents' model is controlled by `HERDR_WORKER_MODEL` in `.env` (see `.env.sample`) — `inherit` (default) uses the Orchestrator's own model, or set an explicit model (e.g. `haiku`) to always use that for workers.
+
 Requires the herdr CLI and an active herdr session (`$HERDR_ENV=1`).
 
 ---

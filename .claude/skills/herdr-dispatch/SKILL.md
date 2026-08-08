@@ -32,6 +32,8 @@ If this fails, tell the user herdr isn't available here and fall back to `/paral
 scripts/spawn-repo-agent.sh <[owner/]repo> <branch> -- <task text...>
 ```
 
+**Worker model**: controlled by `HERDR_WORKER_MODEL` in `.env` (see `.env.sample`), default `inherit`. A plain script cannot introspect "what model is this Orchestrator session running" — there is no such env var — so on `inherit` the script falls back to `$HERDR_ORCH_MODEL`. **Before dispatching, export your own current model id** (you know this from your own system prompt, e.g. `export HERDR_ORCH_MODEL=claude-sonnet-5`) so `inherit` actually resolves to the Orchestrator's model. If `HERDR_WORKER_MODEL` is set to an explicit model instead (e.g. `haiku`), that always wins regardless of `HERDR_ORCH_MODEL`. If neither is set, the worker launches with no `--model` flag (claude's own default).
+
 This does the whole sequence in one call:
 1. Creates the worktree via the existing `scripts/create-worktree.sh` (which itself imports/pulls `repos/<repo>` via `setup-repo.sh`) — or reuses it if it already exists.
 2. Looks up whether a herdr agent is already running with that worktree as its `cwd` (`herdr agent list`); if so, reuses it instead of spawning a duplicate.
