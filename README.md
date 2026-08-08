@@ -147,11 +147,11 @@ By default every hook confines Read/Write/Bash access to the harness root (`repo
 ALLOWED_EXT_DIRS=~/.claude,/tmp
 ```
 
-`.env` is gitignored; this is a local, per-machine setting. Avoid the legacy `ALLOW_EXTERNAL_DIR=true` blanket bypass — it disables the harness-root restriction entirely rather than scoping it to specific directories.
+`.env` is gitignored; this is a local, per-machine setting. External access is enabled precisely when `ALLOWED_EXT_DIRS` is non-empty, and only for the listed paths — there is no separate flag to bypass the harness-root restriction entirely.
 
 ### rm safety net
 
-Independently of `ALLOWED_EXT_DIRS` — and even with the legacy `ALLOW_EXTERNAL_DIR=true` bypass set — every hook unconditionally blocks recursive `rm` commands (`rm -rf`, `sudo rm -r`, etc.) whose target resolves to `$HOME`, `/`, an ancestor of `$HOME` (e.g. `/home`), or another critical top-level directory (`/etc`, `/usr`, `/var`, ...), including glob forms like `rm -rf ~/*` that would wipe a directory's contents. This guards against an accidental `rm -rf ~` or `rm -rf /` — especially important when running Claude Code with `--dangerously-skip-permissions`, where hooks are the only remaining safety net.
+Independently of `ALLOWED_EXT_DIRS` every hook unconditionally blocks recursive `rm` commands (`rm -rf`, `sudo rm -r`, etc.) whose target resolves to `$HOME`, `/`, an ancestor of `$HOME` (e.g. `/home`), or another critical top-level directory (`/etc`, `/usr`, `/var`, ...), including glob forms like `rm -rf ~/*` that would wipe a directory's contents. This guards against an accidental `rm -rf ~` or `rm -rf /` — especially important when running Claude Code with `--dangerously-skip-permissions`, where hooks are the only remaining safety net.
 
 ---
 

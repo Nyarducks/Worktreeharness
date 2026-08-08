@@ -38,7 +38,7 @@ main() {
   source "$harness_root/scripts/lib/rm-guard.sh" 2>/dev/null || true
 
   # Always-on safety net: never allow a recursive rm on $HOME, /, or another
-  # critical directory, even when ALLOW_EXTERNAL_DIR=true.
+  # critical directory, regardless of ALLOWED_EXT_DIRS.
   if declare -F rm_guard_dangerous_reason > /dev/null; then
     local rm_reason
     rm_reason="$(rm_guard_dangerous_reason "$command" "$cwd")"
@@ -48,14 +48,10 @@ main() {
     fi
   fi
 
-  if [[ -f "$harness_root/.env" ]]; then
-    # shellcheck disable=SC1090
-    source "$harness_root/.env"
-  fi
-  if [[ "${ALLOW_EXTERNAL_DIR:-false}" == "true" ]]; then
-    exit 0
-  fi
-
+  # External-directory access is enabled precisely when ALLOWED_EXT_DIRS
+  # lists at least one path, and even then only those specific paths are
+  # reachable — there is no blanket "allow everything outside the harness
+  # root" mode.
   local allowed_dirs=""
   if declare -F load_allowed_ext_dirs > /dev/null; then
     allowed_dirs="$(load_allowed_ext_dirs "$harness_root")"
