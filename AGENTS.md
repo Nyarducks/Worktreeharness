@@ -10,7 +10,7 @@ Worktreeharness manages base clones under `repos/` and active worktrees under `w
 - Use `git -C <path>` for Git commands instead of changing into managed repositories.
 - Never approve or merge a pull request; those actions belong to a human reviewer.
 
-The repository-local Codex hooks enforce the write boundary for `apply_patch` and reject explicit Bash paths outside the harness root. Start a new Codex session after changing `.codex/hooks.json` or files under `.codex/hooks/`.
+The repository-local Codex hooks enforce the write boundary for `apply_patch` and reject explicit Bash paths outside the harness root. Set `ALLOWED_EXT_DIRS` in `.env` (e.g. `~/.claude,/tmp`) to scope access to specific external directories — access outside the harness root is enabled precisely when this list is non-empty, and only for the listed paths; there is no separate switch to bypass the restriction entirely. Regardless of this setting, recursive `rm` targeting `$HOME`, `/`, or another critical directory is always blocked — see `scripts/lib/rm-guard.sh`. Start a new Codex session after changing `.codex/hooks.json` or files under `.codex/hooks/`.
 
 ## Workflow
 
