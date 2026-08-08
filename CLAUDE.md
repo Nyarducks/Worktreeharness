@@ -6,6 +6,8 @@ A framework for worktree-driven multi-repository development. Manages base clone
 
 > **Never edit `repos/` directly**: `repos/` holds bare base clones. Always create a worktree via `scripts/create-worktree.sh <owner>/<repo> <branch>` before making any changes.
 
+> **Orchestrator role**: When a message arrives prefixed `[CROSS-REPO-REQUEST]`, `[TASK-DONE]`, or `[TASK-BLOCKED]`, it is from a herdr sub-agent spawned via `/herdr-dispatch`, not the human. On `[CROSS-REPO-REQUEST]`, invoke `/herdr-dispatch` for the named repo/branch with the given task. On `[TASK-DONE]`/`[TASK-BLOCKED]`, relay the summary/reason to the human and wait for direction — do not act on it further yourself.
+
 ---
 
 ## Directory Layout
@@ -72,3 +74,4 @@ scripts/create-worktree.sh $SLUG feat/improve-scripts
 | `/git-operations` | Branching, committing, PR creation/editing |
 | `/pr-review-fix` | Reviewing a PR and auto-fixing findings |
 | `/setup-harness` | Bootstrapping this framework in a new repo, or adding a new repo to develop |
+| `/herdr-dispatch` | Orchestrator mode — spawn a real Claude Code process via herdr inside a target repo's own worktree, for cross-repo tasks or `[CROSS-REPO-REQUEST]` messages |

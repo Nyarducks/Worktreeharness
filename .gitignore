@@ -3,12 +3,13 @@ tmp/
 worktree/
 .env
 
-# Ignore any locally-added skills; only track the four committed here
+# Ignore any locally-added skills; only track the ones committed here
 .claude/skills/*
 !.claude/skills/git-operations
 !.claude/skills/parallel-worktree
 !.claude/skills/pr-review-fix
 !.claude/skills/setup-harness
+!.claude/skills/herdr-dispatch
 
 # Ignore locally-added Codex skills; track the harness-provided skills only
 .codex/skills/*

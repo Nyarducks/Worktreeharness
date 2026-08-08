@@ -122,6 +122,21 @@ The following slash commands are available inside Claude Code when working in th
 | `/git-operations` | Branching, committing, PR creation and editing via `gh` |
 | `/pr-review-fix` | Review a PR, post inline comments, auto-fix findings in a worktree |
 | `/setup-harness` | Install this framework into a new repo, or onboard an external repo |
+| `/herdr-dispatch` | Orchestrator mode — spawn a real Claude Code process via herdr inside a target repo's own worktree |
+
+---
+
+## Orchestrator mode (`/herdr-dispatch`)
+
+`/parallel-worktree` runs work in-process, so a target repo's own `.claude/skills`/`CLAUDE.md` never load — only Worktreeharness's own do, since the process stays rooted at the harness root. When a task spans multiple repos (e.g. an app change plus a matching infra change), or you specifically want a target repo's own conventions to apply, use `/herdr-dispatch` instead: it spawns a *separate* Claude Code process via `herdr`, rooted at that repo's worktree.
+
+```bash
+scripts/spawn-repo-agent.sh <owner>/<repo> feat/<topic> -- "<task description>"
+```
+
+Dispatched agents report cross-repo needs and completion back to the Orchestrator via `herdr agent send`, using `[CROSS-REPO-REQUEST]` / `[TASK-DONE]` / `[TASK-BLOCKED]` prefixes (see `.claude/skills/herdr-dispatch/SKILL.md`) rather than spawning further agents themselves — the Orchestrator is the single place that dispatches repos, which avoids duplicate worktrees on the same repo+branch.
+
+Requires the herdr CLI and an active herdr session (`$HERDR_ENV=1`).
 
 ---
 
