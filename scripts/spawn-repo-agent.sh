@@ -48,27 +48,59 @@ wait_for_agent_idle() {
 # Reads HERDR_WORKER_MODEL from .env (default: inherit) and prints a
 # " --model <value>" suffix to append to the sub-agent's launch command, or
 # an empty string to launch with no --model flag (claude's own default).
-#
-# "inherit" cannot be resolved by this script alone — there is no env var
-# exposing "which model is the currently-running orchestrator session using"
-# to a plain Bash process (checked: not in `env`, no `claude config get`).
-# Only the Orchestrator (the model itself, via its own system prompt) knows
-# that, so on "inherit" this falls back to $HERDR_ORCH_MODEL, which the
-# Orchestrator is expected to export with its own model id before calling
-# this script (see .claude/skills/herdr-dispatch). If neither is set, no
-# --model flag is passed at all.
-resolve_worker_model() {
+# resolve_agent_cmd <harness_root>
+# Resolves the agent launch command (claude or agy) and model arguments based on
+# HERDR_AGENT_CLI, HERDR_WORKER_MODEL_CLAUDE, HERDR_WORKER_MODEL_AGY, or HERDR_WORKER_MODEL.
+resolve_agent_cmd() {
   local harness_root="$1"
   if [[ -f "${harness_root}/.env" ]]; then
     # shellcheck disable=SC1091
-    source "${harness_root}/.env"
+    source "${harness_root}/.env" 2>/dev/null || true
   fi
-  local worker_model="${HERDR_WORKER_MODEL:-inherit}"
 
-  if [[ "${worker_model}" != "inherit" ]]; then
-    printf ' --model %q' "${worker_model}"
+  local explicit_cli="${HERDR_AGENT_CLI:-auto}"
+  local orch_cli="${HERDR_ORCH_CLI:-}"
+  local cli_binary="claude"
+  local base_flags="--permission-mode auto"
+
+  # 1. Determine CLI runner (claude vs agy)
+  if [[ "${explicit_cli}" == "agy" || "${explicit_cli}" == "antigravity" ]]; then
+    cli_binary="agy"
+    base_flags="--dangerously-skip-permissions"
+  elif [[ "${explicit_cli}" == "claude" ]]; then
+    cli_binary="claude"
+    base_flags="--permission-mode auto"
+  else
+    local orch_model_lower
+    orch_model_lower="$(echo "${HERDR_ORCH_MODEL:-}" | tr '[:upper:]' '[:lower:]')"
+    if [[ "${orch_cli}" == "agy" || "${orch_cli}" == "antigravity" || "${orch_model_lower}" == *gemini* ]]; then
+      cli_binary="agy"
+      base_flags="--dangerously-skip-permissions"
+    else
+      cli_binary="claude"
+      base_flags="--permission-mode auto"
+    fi
+  fi
+
+  # 2. Determine Worker Model based on chosen CLI runner
+  local raw_model="inherit"
+  if [[ "${cli_binary}" == "agy" ]]; then
+    raw_model="${HERDR_WORKER_MODEL_AGY:-${HERDR_WORKER_MODEL:-inherit}}"
+  else
+    raw_model="${HERDR_WORKER_MODEL_CLAUDE:-${HERDR_WORKER_MODEL:-inherit}}"
+  fi
+
+  local resolved_model=""
+  if [[ "${raw_model}" != "inherit" ]]; then
+    resolved_model="${raw_model}"
   elif [[ -n "${HERDR_ORCH_MODEL:-}" ]]; then
-    printf ' --model %q' "${HERDR_ORCH_MODEL}"
+    resolved_model="${HERDR_ORCH_MODEL}"
+  fi
+
+  if [[ -n "${resolved_model}" && "${resolved_model}" != "inherit" ]]; then
+    printf '%s %s --model %q' "${cli_binary}" "${base_flags}" "${resolved_model}"
+  else
+    printf '%s %s' "${cli_binary}" "${base_flags}"
   fi
 }
 
