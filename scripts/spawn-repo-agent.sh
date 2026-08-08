@@ -59,7 +59,8 @@ ensure_trusted_workspace() {
 
 # resolve_agent_cmd <harness_root>
 # Resolves the agent launch command (claude or agy) and model arguments based on
-# HERDR_AGENT_CLI, HERDR_WORKER_MODEL_CLAUDE, HERDR_WORKER_MODEL_AGY, or HERDR_WORKER_MODEL.
+# Orchestrator CLI type, HERDR_AGENT_CLI_CLAUDE, HERDR_AGENT_CLI_AGY,
+# HERDR_WORKER_MODEL_CLAUDE, HERDR_WORKER_MODEL_AGY, or HERDR_WORKER_MODEL.
 resolve_agent_cmd() {
   local harness_root="$1"
   if [[ -f "${harness_root}/.env" ]]; then
@@ -67,31 +68,37 @@ resolve_agent_cmd() {
     source "${harness_root}/.env" 2>/dev/null || true
   fi
 
-  local explicit_cli="${HERDR_AGENT_CLI:-auto}"
   local orch_cli="${HERDR_ORCH_CLI:-}"
-  local cli_binary="claude"
-  local base_flags="--permission-mode auto"
-
-  # 1. Determine CLI runner (claude vs agy)
-  if [[ "${explicit_cli}" == "agy" || "${explicit_cli}" == "antigravity" ]]; then
-    cli_binary="agy"
-    base_flags="--dangerously-skip-permissions"
-  elif [[ "${explicit_cli}" == "claude" ]]; then
-    cli_binary="claude"
-    base_flags="--permission-mode auto"
-  else
-    local orch_model_lower
-    orch_model_lower="$(echo "${HERDR_ORCH_MODEL:-}" | tr '[:upper:]' '[:lower:]')"
-    if [[ "${orch_cli}" == "agy" || "${orch_cli}" == "antigravity" || "${orch_model_lower}" == *gemini* ]]; then
-      cli_binary="agy"
-      base_flags="--dangerously-skip-permissions"
-    else
-      cli_binary="claude"
-      base_flags="--permission-mode auto"
-    fi
+  local orch_model_lower
+  orch_model_lower="$(echo "${HERDR_ORCH_MODEL:-}" | tr '[:upper:]' '[:lower:]')"
+  
+  local is_orch_agy=0
+  if [[ "${orch_cli}" == "agy" || "${orch_cli}" == "antigravity" || "${orch_model_lower}" == *gemini* ]]; then
+    is_orch_agy=1
   fi
 
-  # 2. Determine Worker Model based on chosen CLI runner
+  # 1. Resolve CLI runner (claude vs agy)
+  local explicit_cli="${HERDR_AGENT_CLI:-}"
+  local cli_binary=""
+  local base_flags=""
+
+  if [[ -n "${explicit_cli}" && "${explicit_cli}" != "auto" ]]; then
+    cli_binary="${explicit_cli}"
+  elif [[ "${is_orch_agy}" -eq 1 ]]; then
+    cli_binary="${HERDR_AGENT_CLI_AGY:-agy}"
+  else
+    cli_binary="${HERDR_AGENT_CLI_CLAUDE:-claude}"
+  fi
+
+  if [[ "${cli_binary}" == "agy" || "${cli_binary}" == "antigravity" ]]; then
+    cli_binary="agy"
+    base_flags="--dangerously-skip-permissions"
+  else
+    cli_binary="claude"
+    base_flags="--permission-mode auto"
+  fi
+
+  # 2. Resolve Worker Model based on target CLI runner
   local raw_model="inherit"
   if [[ "${cli_binary}" == "agy" ]]; then
     raw_model="${HERDR_WORKER_MODEL_AGY:-${HERDR_WORKER_MODEL:-inherit}}"
