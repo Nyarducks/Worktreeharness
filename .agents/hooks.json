@@ -1,0 +1,36 @@
+{
+  "harness-guards": {
+    "PreToolUse": [
+      {
+        "matcher": "view_file",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'MAIN=$(git worktree list --porcelain 2>/dev/null | grep -m1 \"^worktree \" | cut -d\" \" -f2); [ -z \"$MAIN\" ] && exit 0; HOOK=\"$(dirname \"$(dirname \"$MAIN\")\")/.agents/hooks/restrict-to-repo-root.sh\"; [ -f \"$HOOK\" ] || exit 0; exec bash \"$HOOK\"'",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "replace_file_content|write_to_file|multi_replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'MAIN=$(git worktree list --porcelain 2>/dev/null | grep -m1 \"^worktree \" | cut -d\" \" -f2); [ -z \"$MAIN\" ] && exit 0; HOOK=\"$(dirname \"$(dirname \"$MAIN\")\")/.agents/hooks/guard-writes-to-worktree.sh\"; [ -f \"$HOOK\" ] || exit 0; exec bash \"$HOOK\"'",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "run_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'MAIN=$(git worktree list --porcelain 2>/dev/null | grep -m1 \"^worktree \" | cut -d\" \" -f2); [ -z \"$MAIN\" ] && exit 0; HOOK=\"$(dirname \"$(dirname \"$MAIN\")\")/.agents/hooks/guard-bash-commands.sh\"; [ -f \"$HOOK\" ] || exit 0; exec bash \"$HOOK\"'",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
