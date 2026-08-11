@@ -134,7 +134,7 @@ The following slash commands are available inside Claude Code when working in th
 scripts/spawn-repo-agent.sh <owner>/<repo> feat/<topic> -- "<task description>"
 ```
 
-Dispatched agents report cross-repo needs and completion back to the Orchestrator via `herdr agent send`, using `[CROSS-REPO-REQUEST]` / `[TASK-DONE]` / `[TASK-BLOCKED]` prefixes (see `.claude/skills/herdr-dispatch/SKILL.md`) rather than spawning further agents themselves — the Orchestrator is the single place that dispatches repos, which avoids duplicate worktrees on the same repo+branch.
+Dispatched agents report cross-repo needs and completion back to the Orchestrator via `herdr agent send`, using `[CROSS-REPO-REQUEST]` / `[TASK-DONE]` / `[TASK-BLOCKED]` prefixes (see `.claude/skills/herdr-dispatch/SKILL.md`) rather than spawning further agents themselves — the Orchestrator is the single place that dispatches repos, which avoids duplicate worktrees on the same repo+branch. `scripts/lib/herdr-report.sh`'s `herdr_submit` refuses (never sends) any report over `HERDR_REPORT_MAX_CHARS` (default 800 chars) — keep these reports short and put full detail in the PR description or commit body instead.
 
 ### Orchestrator execution discipline
 
@@ -173,6 +173,18 @@ remove the worktree. Stop/verify the worker first if it may still be active.
 Worker agents' model is controlled by `HERDR_WORKER_MODEL` in `.env` (see `.env.sample`) — `inherit` (default) uses the Orchestrator's own model, or set an explicit model (e.g. `haiku`) to always use that for workers.
 
 Requires the herdr CLI and an active herdr session (`$HERDR_ENV=1`).
+
+---
+
+## Testing
+
+Shell library logic (e.g. `scripts/lib/herdr-report.sh`) is covered by [Bats](https://github.com/bats-core/bats-core) tests under `tests/`:
+
+```bash
+bats tests/lib/herdr-report.bats
+# or, to run everything under tests/
+bats --recursive tests/
+```
 
 ---
 
