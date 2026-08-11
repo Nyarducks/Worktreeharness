@@ -68,6 +68,15 @@ Every sub-agent is told (via the message `spawn-repo-agent.sh` sends) to report 
 
 This is a prose convention read by the Orchestrator's own model, not a machine parser — the prefixes just need to stay consistent. See `CLAUDE.md`'s Orchestrator-role paragraph for how the Orchestrator should react on receiving one.
 
+## Orchestrator execution discipline
+
+1. A delegated worktree remains agent-owned. Send all follow-ups through `scripts/spawn-repo-agent.sh`; never take over the worktree.
+2. Never interrupt, pause, or stop a user-authorized worker unless the user explicitly says `stop`, `cancel`, or `abort`. Ambiguous scope changes are additive.
+3. Dispatch independent authorized Worktreeharness work in parallel; do not block existing workers.
+4. Do not emit periodic progress reports unless the user asks. Wait for completion or idle events.
+5. On each worker's `[TASK-DONE]` or idle event, independently check its result and report it immediately. Do not wait for unrelated workers, batch results, or treat reduced monitoring as permission to delay final confirmation.
+6. After completion, verify only that worker's result, PR, labels, clean worktree, and stated test result.
+
 **Star topology**: dispatched agents must never call `herdr agent start` themselves. All cross-repo requests flow back through the Orchestrator, which is the single place responsible for avoiding duplicate worktrees/agents on the same repo+branch (via the `herdr agent list` cwd lookup in step 2 above).
 
 ## Notes (confirmed by live testing)

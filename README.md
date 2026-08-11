@@ -136,6 +136,15 @@ scripts/spawn-repo-agent.sh <owner>/<repo> feat/<topic> -- "<task description>"
 
 Dispatched agents report cross-repo needs and completion back to the Orchestrator via `herdr agent send`, using `[CROSS-REPO-REQUEST]` / `[TASK-DONE]` / `[TASK-BLOCKED]` prefixes (see `.claude/skills/herdr-dispatch/SKILL.md`) rather than spawning further agents themselves — the Orchestrator is the single place that dispatches repos, which avoids duplicate worktrees on the same repo+branch.
 
+### Orchestrator execution discipline
+
+1. A delegated worktree remains agent-owned: all follow-ups go to that agent and the Orchestrator never takes it over.
+2. Never interrupt, pause, or stop a user-authorized worker unless the user explicitly says `stop`, `cancel`, or `abort`; ambiguous scope changes are additive.
+3. Run or dispatch independent authorized Worktreeharness work in parallel without blocking existing workers.
+4. Do not emit periodic progress updates unless asked; wait for completion or idle events.
+5. Independently check and report every worker's `[TASK-DONE]` or idle event immediately. Never batch it with unrelated workers or delay an already completed worker's final confirmation because monitoring was reduced.
+6. After completion, verify only that task's result, PR, labels, clean worktree, and stated test result.
+
 ### Delegated-worktree ownership
 
 Dispatching also creates a local runtime ownership record under
