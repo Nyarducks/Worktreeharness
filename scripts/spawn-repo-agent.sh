@@ -133,29 +133,31 @@ find_existing_pane() {
 
 build_message() {
   local repo_name="$1" branch_name="$2" worktree_path="$3" orchestrator_pane="$4" task_text="$5" self_pane="$6"
+  local harness_root_literal="$7"
   cat <<MSG
 [ORCHESTRATOR TASK]
 You were spawned via herdr for repo ${repo_name} on branch ${branch_name} (worktree: ${worktree_path}).
 Orchestrator herdr pane: ${orchestrator_pane}
 Your own herdr pane (use this literal value as "from=" below, do not use \$HERDR_PANE_ID — see note): ${self_pane}
+Harness root (use this literal value, do not use \$HERDR_HARNESS_ROOT — same reason as above): ${harness_root_literal}
 
 Task:
 ${task_text}
 
 Rules:
 - Work only inside this worktree, following this repo's own CLAUDE.md/AGENTS.md and skill conventions.
-- IMPORTANT: \`herdr agent send\` only types text into the target pane's input box — it does NOT submit it. Every message below must be followed by \`herdr pane send-keys ${orchestrator_pane} Enter\` (as a separate command, with at least ~1s in between) or the Orchestrator will never see it.
+- IMPORTANT: \`herdr agent send\` only types text into the target pane's input box — it does NOT submit it, and firing \`herdr pane send-keys ... Enter\` immediately after (or even after a flat 1s sleep, for longer messages) is a real, observed race that can leave the message sitting unsubmitted in the Orchestrator's pane. Source the harness's retry-and-verify helper once per report instead of doing send/sleep/Enter by hand:
+    source ${harness_root_literal}/scripts/lib/herdr-report.sh
+  Then call \`herdr_submit <target_pane> "<message>"\` for every message below — it scales the settle delay to message length and retries the Enter (and, if needed, the send) until the target pane actually leaves "idle", instead of firing Enter once and hoping.
 - IMPORTANT: use the literal pane id ${self_pane} in the commands below, not a \$HERDR_PANE_ID shell expansion — even under --permission-mode auto, a command containing shell variable expansion still triggers a manual approval prompt (confirmed live), while the same command with a literal value does not.
 - If this task needs changes in a DIFFERENT repository, do NOT edit that repository yourself. Instead run:
-    herdr agent send ${orchestrator_pane} "[CROSS-REPO-REQUEST] repo=<owner/repo> branch=<suggested-branch> from=${self_pane} task=<description>"
-    sleep 1 && herdr pane send-keys ${orchestrator_pane} Enter
+    herdr_submit ${orchestrator_pane} "[CROSS-REPO-REQUEST] repo=<owner/repo> branch=<suggested-branch> from=${self_pane} task=<description>"
   and continue your own work — never spawn other repos' agents yourself.
 - When you finish, run:
-    herdr agent send ${orchestrator_pane} "[TASK-DONE] from=${self_pane} summary=<one paragraph>"
-    sleep 1 && herdr pane send-keys ${orchestrator_pane} Enter
+    herdr_submit ${orchestrator_pane} "[TASK-DONE] from=${self_pane} summary=<one paragraph>"
 - If you get stuck and need a human, run:
-    herdr agent send ${orchestrator_pane} "[TASK-BLOCKED] from=${self_pane} reason=<why>"
-    sleep 1 && herdr pane send-keys ${orchestrator_pane} Enter
+    herdr_submit ${orchestrator_pane} "[TASK-BLOCKED] from=${self_pane} reason=<why>"
+- If \`herdr_submit\` ever prints a WARNING that the pane never left idle, treat the report as NOT delivered — do not assume it went through. Re-run \`herdr pane read ${orchestrator_pane} --lines 30\` to check the actual state of the Orchestrator's input box before retrying.
 MSG
 }
 
@@ -237,7 +239,7 @@ main() {
     # spawning further agents via `agent start`) without that per-command
     # approval friction, and needs no confirmation dialog on launch.
     local tab_json
-    tab_json="$(herdr tab create --cwd "${worktree_path}" --label "${agent_name}" --env "HERDR_ORCH_PANE=${HERDR_PANE_ID}" --env "HERDR_WORKER_WORKTREE=${worktree_path}" --no-focus)"
+    tab_json="$(herdr tab create --cwd "${worktree_path}" --label "${agent_name}" --env "HERDR_ORCH_PANE=${HERDR_PANE_ID}" --env "HERDR_WORKER_WORKTREE=${worktree_path}" --env "HERDR_HARNESS_ROOT=${harness_root}" --no-focus)"
     echo "${tab_json}" >&2
     pane_id="$(jq -r '.result.root_pane.pane_id' <<< "${tab_json}")"
     [[ -n "${pane_id}" && "${pane_id}" != "null" ]] || { echo "Error: could not read pane_id from herdr tab create output." >&2; exit 1; }
@@ -253,15 +255,12 @@ main() {
   # never performed by the Orchestrator in the worker's worktree.
   worktree_ownership_claim "${harness_root}" "${worktree_path}" "${repo_arg}" "${branch_name}" "${pane_id}" "${HERDR_PANE_ID}"
 
+  # shellcheck disable=SC1091
+  source "${script_dir}/lib/herdr-report.sh"
+
   local message
-  message="$(build_message "${repo_name}" "${branch_name}" "${worktree_path}" "${HERDR_PANE_ID}" "${task_text}" "${pane_id}")"
-  herdr agent send "${pane_id}" "${message}" >&2
-  # agent send only types the text — it does not submit it. A large paste
-  # (this message is long) takes a moment to land in the input box before
-  # Enter actually submits it rather than being a no-op; sending Enter too
-  # immediately after send is a real race, observed in manual testing.
-  sleep 1
-  herdr pane send-keys "${pane_id}" Enter >&2
+  message="$(build_message "${repo_name}" "${branch_name}" "${worktree_path}" "${HERDR_PANE_ID}" "${task_text}" "${pane_id}" "${harness_root}")"
+  herdr_submit "${pane_id}" "${message}" >&2
 
   echo "Dispatched to pane ${pane_id} (repo=${repo_name} branch=${branch_name})."
 }
