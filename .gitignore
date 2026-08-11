@@ -16,6 +16,8 @@ worktree/
 .codex/skills/*
 !.codex/skills/git-operations/
 !.codex/skills/git-operations/**
+!.codex/skills/herdr-dispatch/
+!.codex/skills/herdr-dispatch/**
 !.codex/skills/parallel-worktree/
 !.codex/skills/parallel-worktree/**
 !.codex/skills/pr-review-fix/
