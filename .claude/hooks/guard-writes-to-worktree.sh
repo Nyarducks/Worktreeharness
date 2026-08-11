@@ -30,6 +30,14 @@ main() {
 
   local WORKTREE_DIR="${MAIN_REPO}/worktree"
   if [[ "${FP}" == "${WORKTREE_DIR}"/* || "${FP}" == "${WORKTREE_DIR}" ]]; then
+    # shellcheck disable=SC1091
+    source "${MAIN_REPO}/scripts/lib/worktree-ownership.sh" 2>/dev/null || true
+    if declare -F worktree_ownership_denial_reason >/dev/null; then
+      local OWNERSHIP_REASON
+      if OWNERSHIP_REASON="$(worktree_ownership_denial_reason "${MAIN_REPO}" "${FP}")"; then
+        deny "Write blocked: ${OWNERSHIP_REASON}"
+      fi
+    fi
     exit 0
   fi
 

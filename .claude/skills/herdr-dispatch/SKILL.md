@@ -39,6 +39,7 @@ This does the whole sequence in one call:
 2. Looks up whether a herdr agent is already running with that worktree as its `cwd` (`herdr agent list`); if so, reuses it instead of spawning a duplicate.
 3. Otherwise creates a **dedicated tab** (`herdr tab create --cwd <worktree>`, not a split pane inside the Orchestrator's own tab) and types `claude --permission-mode auto` into it via `herdr pane run`, then waits (with retries — see Notes) for it to register as idle.
 4. Sends it the task, framed with the reporting-back protocol below, via `herdr agent send` followed by `herdr pane send-keys <pane_id> Enter` to actually submit it.
+5. Records the worktree as owned by that dispatched agent. The ownership record is local-only and remains after completion/blocking reports so the Orchestrator cannot accidentally take over the worker's checkout.
 
 The script prints `Dispatched to pane <pane_id> (repo=... branch=...)` on success — use that `pane_id` for monitoring.
 
@@ -67,6 +68,40 @@ Every sub-agent is told (via the message `spawn-repo-agent.sh` sends) to report 
 | `[TASK-BLOCKED] from=<pane_id> reason=<text>` | The sub-agent is stuck | Relay the reason to the human; do not act further without direction |
 
 This is a prose convention read by the Orchestrator's own model, not a machine parser — the prefixes just need to stay consistent. See `CLAUDE.md`'s Orchestrator-role paragraph for how the Orchestrator should react on receiving one.
+
+## Orchestrator execution discipline
+
+1. A delegated worktree remains agent-owned. Send all follow-ups through `scripts/spawn-repo-agent.sh`; never take over the worktree.
+2. Never interrupt, pause, or stop a user-authorized worker unless the user explicitly says `stop`, `cancel`, or `abort`. Ambiguous scope changes are additive.
+3. Dispatch independent authorized Worktreeharness work in parallel; do not block existing workers.
+4. Do not emit periodic progress reports unless the user asks. Wait for completion or idle events.
+5. On each worker's `[TASK-DONE]` or idle event, independently check its result and report it immediately. Do not wait for unrelated workers, batch results, or treat reduced monitoring as permission to delay final confirmation.
+6. After completion, verify only that worker's result, PR, labels, clean worktree, and stated test result.
+
+## Ownership and follow-up work
+
+`[TASK-DONE]` and `[TASK-BLOCKED]` do **not** release the dispatched
+worktree. They only tell the Orchestrator to relay the result to the human.
+If the human asks for a change in that same repo/branch, send it through the
+same dispatcher command instead of reading or editing the worktree yourself:
+
+```bash
+scripts/spawn-repo-agent.sh <owner>/<repo> <branch> -- "<follow-up task>"
+```
+
+The runtime registry at `.runtime/herdr-worktree-ownership/` is ignored by
+Git. Codex and agy write guards use it to reject Orchestrator writes and show
+the follow-up command. A dispatched worker is exempt for its own worktree.
+
+When the human confirms there is no more delegated work, release the record
+explicitly:
+
+```bash
+scripts/spawn-repo-agent.sh --release <owner>/<repo> <branch>
+```
+
+This releases only the ownership record. It does not stop the agent or delete
+the worktree; make sure the worker is no longer active before releasing it.
 
 **Star topology**: dispatched agents must never call `herdr agent start` themselves. All cross-repo requests flow back through the Orchestrator, which is the single place responsible for avoiding duplicate worktrees/agents on the same repo+branch (via the `herdr agent list` cwd lookup in step 2 above).
 
