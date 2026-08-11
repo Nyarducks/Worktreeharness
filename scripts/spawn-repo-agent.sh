@@ -150,13 +150,14 @@ Rules:
     source ${harness_root_literal}/scripts/lib/herdr-report.sh
   Then call \`herdr_submit <target_pane> "<message>"\` for every message below — it scales the settle delay to message length and retries the Enter (and, if needed, the send) until the target pane actually leaves "idle", instead of firing Enter once and hoping.
 - IMPORTANT: use the literal pane id ${self_pane} in the commands below, not a \$HERDR_PANE_ID shell expansion — even under --permission-mode auto, a command containing shell variable expansion still triggers a manual approval prompt (confirmed live), while the same command with a literal value does not.
+- IMPORTANT: \`herdr_submit\` REFUSES (and does not send) any message over 800 characters (HERDR_REPORT_MAX_CHARS) — keep every CROSS-REPO-REQUEST/TASK-DONE/TASK-BLOCKED report short and factual (a sentence or two). Put full detail — logs, diffs, long explanations — in the PR description or commit body, not in the herdr message. If \`herdr_submit\` refuses your report, shorten it and call it again; do not loop retrying the same oversized text.
 - If this task needs changes in a DIFFERENT repository, do NOT edit that repository yourself. Instead run:
-    herdr_submit ${orchestrator_pane} "[CROSS-REPO-REQUEST] repo=<owner/repo> branch=<suggested-branch> from=${self_pane} task=<description>"
+    herdr_submit ${orchestrator_pane} "[CROSS-REPO-REQUEST] repo=<owner/repo> branch=<suggested-branch> from=${self_pane} task=<short description>"
   and continue your own work — never spawn other repos' agents yourself.
 - When you finish, run:
-    herdr_submit ${orchestrator_pane} "[TASK-DONE] from=${self_pane} summary=<one paragraph>"
+    herdr_submit ${orchestrator_pane} "[TASK-DONE] from=${self_pane} summary=<concise summary, under the cap>"
 - If you get stuck and need a human, run:
-    herdr_submit ${orchestrator_pane} "[TASK-BLOCKED] from=${self_pane} reason=<why>"
+    herdr_submit ${orchestrator_pane} "[TASK-BLOCKED] from=${self_pane} reason=<short reason>"
 - If \`herdr_submit\` ever prints a WARNING that the pane never left idle, treat the report as NOT delivered — do not assume it went through. Re-run \`herdr pane read ${orchestrator_pane} --lines 30\` to check the actual state of the Orchestrator's input box before retrying.
 MSG
 }

@@ -9,14 +9,28 @@
 # mitigates but does not eliminate this for longer messages, so herdr_submit
 # scales the settle delay with message length and verifies the send by
 # waiting for the target pane to flip out of "idle" before giving up.
+#
+# Oversized messages make that race worse (bigger pastes take longer to
+# land) and tend to mean the report should have been a summary in the first
+# place. herdr_submit refuses anything over HERDR_REPORT_MAX_CHARS before it
+# ever calls `herdr agent send`, so a caller can't retry its way into
+# delivering an oversized payload — the send simply never happens.
+HERDR_REPORT_MAX_CHARS="${HERDR_REPORT_MAX_CHARS:-800}"
 
 # herdr_submit <target_pane_id> <message>
 # Sends <message> to <target_pane_id> and submits it, retrying the Enter
 # keypress (and, as a last resort, re-sending the text) if the target pane
 # never reports leaving "idle" — i.e. the message never actually submitted.
+# Fails fast (no send attempted at all) if <message> exceeds
+# HERDR_REPORT_MAX_CHARS chars.
 herdr_submit() {
   local target_pane="$1" message="$2"
   local attempt settle
+
+  if (( ${#message} > HERDR_REPORT_MAX_CHARS )); then
+    echo "herdr_submit: REFUSED — message is ${#message} chars, over the ${HERDR_REPORT_MAX_CHARS}-char cap. Summarize it: keep TASK-DONE/TASK-BLOCKED/CROSS-REPO-REQUEST reports short and factual, and put full detail (logs, diffs, long explanations) in the PR description or commit body instead of the herdr message. Then call herdr_submit again with the shorter text." >&2
+    return 1
+  fi
 
   herdr agent send "${target_pane}" "${message}"
 
