@@ -23,6 +23,8 @@ scripts/spawn-repo-agent.sh <[owner/]repo> <branch> -- <task text...>
 
 Before dispatching, `export HERDR_ORCH_MODEL=<your own model id>` so a `HERDR_WORKER_MODEL=inherit` (the default) resolves to the Orchestrator's model instead of launching with no `--model` flag.
 
+**AGY Model Selection**: When using Antigravity (`agy`), exact model strings must be passed. Run `agy models`, then launch with it (e.g. `agy --model gemini-3.1-pro-high` for Gemini 3.1 Pro High). Do **not** use interactive model switching, as the picker UI hangs in automated panes.
+
 This creates/reuses the worktree, reuses an existing herdr agent on that worktree if one is already running (`herdr agent list` by `cwd`), otherwise opens a dedicated tab and starts `claude --permission-mode auto` in it, then hands it the task framed with the reporting protocol below via `herdr_submit`. It prints `Dispatched to pane <pane_id> (repo=... branch=...)`.
 
 ```bash
