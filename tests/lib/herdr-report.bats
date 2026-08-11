@@ -85,3 +85,4 @@ FAKE
   send_count="$(grep -c "^agent send" "${HERDR_FAKE_LOG}")"
   [ "${send_count}" -ge 2 ]
 }
+
