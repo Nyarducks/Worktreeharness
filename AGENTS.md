@@ -8,6 +8,8 @@ A framework for worktree-driven multi-repository development. Manages base clone
 
 > **Orchestrator role**: When a message arrives prefixed `[CROSS-REPO-REQUEST]`, `[TASK-DONE]`, or `[TASK-BLOCKED]`, it is from a herdr sub-agent spawned via `/herdr-dispatch`, not the human. On `[CROSS-REPO-REQUEST]`, invoke `/herdr-dispatch` for the named repo/branch with the given task. On `[TASK-DONE]`/`[TASK-BLOCKED]`, relay the summary/reason to the human and wait for direction — do not act on it further yourself.
 
+> **Delegated-worktree ownership**: `scripts/spawn-repo-agent.sh` records a worktree as owned before it sends work to a herdr agent. While it is owned, the Orchestrator must never edit that worktree, including after `[TASK-DONE]` or `[TASK-BLOCKED]`. Send follow-up work through `/herdr-dispatch` / `scripts/spawn-repo-agent.sh <repo> <branch> -- "<task>"`. Ownership is intentionally retained until the human-approved cleanup point; release it explicitly with `scripts/spawn-repo-agent.sh --release <repo> <branch>` only when no further delegated work is required. Codex and agy write guards enforce this rule; the dispatched worker is exempt for its own assigned worktree.
+
 The repository-local Claude Code hooks enforce the write boundary for `Edit`/`Write`, and reject `Read`/`Bash` paths outside the harness root. Set `ALLOWED_EXT_DIRS` in `.env` (e.g. `~/.claude,/tmp`) to scope access to specific external directories — access outside the harness root is enabled precisely when this list is non-empty, and only for the listed paths; there is no separate switch to bypass the restriction entirely. Regardless of this setting, recursive `rm` targeting `$HOME`, `/`, or another critical directory is always blocked — see `scripts/lib/rm-guard.sh`.
 
 ---

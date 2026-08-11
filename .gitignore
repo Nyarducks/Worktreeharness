@@ -2,6 +2,7 @@ repos/
 tmp/
 worktree/
 .env
+.runtime/
 
 # Ignore any locally-added skills; only track the ones committed here
 .claude/skills/*

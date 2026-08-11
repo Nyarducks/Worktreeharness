@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Usage: spawn-repo-agent.sh <[org/]repo-name> <branch-name> -- <task text...>
+#        spawn-repo-agent.sh --release <[org/]repo-name> <branch-name>
 #
 # Orchestrator-side helper: creates (or reuses) a worktree for <repo>/<branch>,
 # spawns a dedicated Claude Code process there via herdr (so that repo's own
@@ -9,6 +10,7 @@ set -euo pipefail
 
 usage() {
   echo "Usage: $0 <[org/]repo-name> <branch-name> -- <task text...>" >&2
+  echo "       $0 --release <[org/]repo-name> <branch-name>" >&2
   exit 1
 }
 
@@ -158,6 +160,21 @@ MSG
 }
 
 main() {
+  local script_dir harness_root
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  harness_root="${WORKTREE_LAB_DIR:-$(cd "${script_dir}/.." && pwd)}"
+
+  if [[ "${1:-}" == "--release" ]]; then
+    [[ $# -eq 3 ]] || usage
+    local release_repo_name="${2##*/}" release_branch="$3"
+    local release_worktree_path="${harness_root}/worktree/${release_repo_name}/${release_branch}"
+    # shellcheck disable=SC1091
+    source "${script_dir}/lib/worktree-ownership.sh"
+    worktree_ownership_release "${harness_root}" "${release_worktree_path}"
+    echo "Released delegated-agent ownership for ${release_worktree_path}."
+    return
+  fi
+
   [[ $# -lt 4 ]] && usage
   local repo_arg="$1" branch_name="$2"
   shift 2
@@ -168,12 +185,22 @@ main() {
 
   require_herdr
 
-  local script_dir harness_root
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  harness_root="${WORKTREE_LAB_DIR:-$(cd "${script_dir}/.." && pwd)}"
-
   local repo_name="${repo_arg##*/}"
   local worktree_path="${harness_root}/worktree/${repo_name}/${branch_name}"
+
+  # Refuse to create or reuse a pane for work already delegated by another
+  # Orchestrator. This check happens before any tab can be created, while the
+  # claim below remains the authoritative update for this Orchestrator.
+  # shellcheck disable=SC1091
+  source "${script_dir}/lib/worktree-ownership.sh"
+  local existing_claim existing_orchestrator
+  if existing_claim="$(worktree_ownership_lookup "${harness_root}" "${worktree_path}")"; then
+    existing_orchestrator="$(worktree_ownership_record_value "${existing_claim}" orchestrator_pane)"
+    if [[ -n "${existing_orchestrator}" && "${existing_orchestrator}" != "${HERDR_PANE_ID}" ]]; then
+      echo "Error: ${worktree_path} is owned by orchestrator pane ${existing_orchestrator}. Send follow-up work through that Orchestrator or release ownership explicitly after the worker is finished." >&2
+      exit 1
+    fi
+  fi
 
   if [[ -d "${worktree_path}" ]]; then
     echo "Worktree already exists at ${worktree_path} — reusing." >&2
@@ -210,7 +237,7 @@ main() {
     # spawning further agents via `agent start`) without that per-command
     # approval friction, and needs no confirmation dialog on launch.
     local tab_json
-    tab_json="$(herdr tab create --cwd "${worktree_path}" --label "${agent_name}" --env "HERDR_ORCH_PANE=${HERDR_PANE_ID}" --no-focus)"
+    tab_json="$(herdr tab create --cwd "${worktree_path}" --label "${agent_name}" --env "HERDR_ORCH_PANE=${HERDR_PANE_ID}" --env "HERDR_WORKER_WORKTREE=${worktree_path}" --no-focus)"
     echo "${tab_json}" >&2
     pane_id="$(jq -r '.result.root_pane.pane_id' <<< "${tab_json}")"
     [[ -n "${pane_id}" && "${pane_id}" != "null" ]] || { echo "Error: could not read pane_id from herdr tab create output." >&2; exit 1; }
@@ -220,6 +247,11 @@ main() {
     herdr pane run "${pane_id}" "cd ${worktree_path} && ${agent_cmd}" >&2
     wait_for_agent_idle "${pane_id}"
   fi
+
+  # Claim before handing over the task. The record intentionally survives
+  # TASK-DONE/TASK-BLOCKED so later work is routed through this dispatcher,
+  # never performed by the Orchestrator in the worker's worktree.
+  worktree_ownership_claim "${harness_root}" "${worktree_path}" "${repo_arg}" "${branch_name}" "${pane_id}" "${HERDR_PANE_ID}"
 
   local message
   message="$(build_message "${repo_name}" "${branch_name}" "${worktree_path}" "${HERDR_PANE_ID}" "${task_text}" "${pane_id}")"

@@ -136,6 +136,31 @@ scripts/spawn-repo-agent.sh <owner>/<repo> feat/<topic> -- "<task description>"
 
 Dispatched agents report cross-repo needs and completion back to the Orchestrator via `herdr agent send`, using `[CROSS-REPO-REQUEST]` / `[TASK-DONE]` / `[TASK-BLOCKED]` prefixes (see `.claude/skills/herdr-dispatch/SKILL.md`) rather than spawning further agents themselves — the Orchestrator is the single place that dispatches repos, which avoids duplicate worktrees on the same repo+branch.
 
+### Delegated-worktree ownership
+
+Dispatching also creates a local runtime ownership record under
+`.runtime/herdr-worktree-ownership/` (ignored by Git). The record remains in
+place after a worker reports `[TASK-DONE]` or `[TASK-BLOCKED]`: those messages
+are handoffs to the Orchestrator, not permission for it to edit the worker's
+worktree. Send follow-up work through the dispatcher instead:
+
+```bash
+scripts/spawn-repo-agent.sh <owner>/<repo> feat/<topic> -- "<follow-up task>"
+```
+
+Codex and agy write guards deny an Orchestrator write to an owned worktree and
+show this command in the denial message. The dispatched worker receives a
+scoped `HERDR_WORKER_WORKTREE` marker and is not blocked from working in its
+own assigned worktree. Release ownership only when the delegated work is
+really finished and no follow-up will be sent:
+
+```bash
+scripts/spawn-repo-agent.sh --release <owner>/<repo> feat/<topic>
+```
+
+`--release` is an explicit cleanup operation; it does not stop a worker or
+remove the worktree. Stop/verify the worker first if it may still be active.
+
 Worker agents' model is controlled by `HERDR_WORKER_MODEL` in `.env` (see `.env.sample`) — `inherit` (default) uses the Orchestrator's own model, or set an explicit model (e.g. `haiku`) to always use that for workers.
 
 Requires the herdr CLI and an active herdr session (`$HERDR_ENV=1`).
@@ -148,7 +173,7 @@ Three `PreToolUse` hooks run automatically inside Claude Code:
 
 | Hook | Triggers on | Effect |
 |---|---|---|
-| `guard-writes-to-worktree.sh` | `Edit`, `Write` | Denies any write outside `worktree/` (unless the target is under `ALLOWED_EXT_DIRS`) |
+| `guard-writes-to-worktree.sh` | `Edit`, `Write` | Denies any write outside `worktree/` and any Orchestrator write to a herdr-owned worktree (unless the target is under `ALLOWED_EXT_DIRS`) |
 | `restrict-to-repo-root.sh` | `Read` | Denies reads outside the harness root, `worktree/`, and `repos/` (unless under `ALLOWED_EXT_DIRS`) |
 | `guard-bash-commands.sh` | `Bash` | Blocks dangerous `rm` commands unconditionally, and restricts other paths to the harness root or `ALLOWED_EXT_DIRS` |
 
