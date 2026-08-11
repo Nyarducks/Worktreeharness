@@ -52,10 +52,34 @@ wait_for_agent_idle() {
 ensure_trusted_workspace() {
   local worktree_path="$1"
   local settings_file="${HOME}/.gemini/antigravity-cli/settings.json"
+  
   if [[ -f "${settings_file}" ]] && command -v jq >/dev/null 2>&1; then
-    jq --arg path "${worktree_path}" '
-      .trustedWorkspaces = ((.trustedWorkspaces // []) + [$path] | unique)
-    ' "${settings_file}" > "${settings_file}.tmp" 2>/dev/null && mv "${settings_file}.tmp" "${settings_file}" 2>/dev/null || true
+    (
+      flock -x 200
+      
+      # Validate the JSON object before modifying it
+      if ! jq -e 'type == "object"' "${settings_file}" >/dev/null 2>&1; then
+        # Preserve a corrupt-file backup if recovery is needed
+        local backup_file recovery_tmp
+        backup_file="$(mktemp "${settings_file}.corrupt-XXXXXX.bak")"
+        cp "${settings_file}" "${backup_file}" 2>/dev/null || true
+        recovery_tmp="$(mktemp "${settings_file}.XXXXXX")"
+        echo "{}" > "${recovery_tmp}"
+        mv "${recovery_tmp}" "${settings_file}" 2>/dev/null || rm -f "${recovery_tmp}"
+      fi
+      
+      # Safe unique atomic write
+      local tmp_file
+      tmp_file="$(mktemp "${settings_file}.XXXXXX")"
+      
+      if jq --arg path "${worktree_path}" '
+        .trustedWorkspaces = ((.trustedWorkspaces // []) + [$path] | unique)
+      ' "${settings_file}" > "${tmp_file}" 2>/dev/null; then
+        mv "${tmp_file}" "${settings_file}" 2>/dev/null || rm -f "${tmp_file}"
+      else
+        rm -f "${tmp_file}"
+      fi
+    ) 200>"${settings_file}.lock"
   fi
 }
 

@@ -38,17 +38,7 @@ exit 0
 FAKE
   chmod +x "${FAKE_BIN}/git"
 
-  # Fake jq
-  cat > "${FAKE_BIN}/jq" <<'FAKE'
-#!/usr/bin/env bash
-if [[ "$*" == *".result.root_pane.pane_id"* ]]; then
-  echo "pane:spawned"
-else
-  echo ""
-fi
-exit 0
-FAKE
-  chmod +x "${FAKE_BIN}/jq"
+
 
   export WORKTREE_LAB_DIR="${BATS_TEST_TMPDIR}/lab"
   mkdir -p "${WORKTREE_LAB_DIR}/scripts/lib"
@@ -112,4 +102,55 @@ FAKE
   # Ensure mandatory file reference is in the sent message
   grep -q "use the Read tool to read" "${HERDR_FAKE_LOG}"
   grep -q "worker-bootstrap.md completely" "${HERDR_FAKE_LOG}"
+}
+
+@test "ensure_trusted_workspace recovers from malformed settings.json" {
+  export HOME="${BATS_TEST_TMPDIR}/home_malformed"
+  mkdir -p "${HOME}/.gemini/antigravity-cli"
+  local settings_file="${HOME}/.gemini/antigravity-cli/settings.json"
+  
+  # Write malformed JSON
+  echo "corrupted data {" > "${settings_file}"
+  
+  run "${REPO_ROOT}/scripts/spawn-repo-agent.sh" "owner/SomeRepo" "feat/x" -- "test task"
+  [ "$status" -eq 0 ]
+  
+  # Verify it created a backup
+  local backup_exists=0
+  for f in "${settings_file}.corrupt-"*.bak; do
+    if [ -f "$f" ]; then
+      backup_exists=1
+      break
+    fi
+  done
+  [ "$backup_exists" -eq 1 ]
+  
+  # Verify the original file was reset and updated correctly
+  run jq -r '.trustedWorkspaces[]' "${settings_file}"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"/worktree/SomeRepo/feat/x"* ]]
+}
+
+@test "ensure_trusted_workspace serializes concurrent updates and recovery" {
+  export HOME="${BATS_TEST_TMPDIR}/home_concurrent"
+  mkdir -p "${HOME}/.gemini/antigravity-cli"
+  local settings_file="${HOME}/.gemini/antigravity-cli/settings.json"
+  # Start with malformed JSON to test concurrent recovery
+  echo "corrupted data {" > "${settings_file}"
+  
+  # Run 10 instances concurrently
+  for i in {1..10}; do
+    mkdir -p "${WORKTREE_LAB_DIR}/worktree/SomeRepo/feat/branch${i}"
+    "${REPO_ROOT}/scripts/spawn-repo-agent.sh" "owner/SomeRepo" "feat/branch${i}" -- "test task" >/dev/null 2>&1 &
+  done
+  wait
+  
+  # Verify all 10 were written without data loss
+  local count
+  count="$(jq '.trustedWorkspaces | length' "${settings_file}")"
+  if [ "$count" -ne 10 ]; then
+    echo "Count was $count, expected 10. File content:" >&3
+    cat "${settings_file}" >&3
+  fi
+  [ "$count" -eq 10 ]
 }
