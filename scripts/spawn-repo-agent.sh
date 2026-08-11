@@ -132,33 +132,12 @@ find_existing_pane() {
 }
 
 build_message() {
-  local repo_name="$1" branch_name="$2" worktree_path="$3" orchestrator_pane="$4" task_text="$5" self_pane="$6"
-  local harness_root_literal="$7"
+  local orchestrator_pane="$4" task_text="$5" self_pane="$6" harness_root_literal="$7"
   cat <<MSG
-[ORCHESTRATOR TASK]
-You were spawned via herdr for repo ${repo_name} on branch ${branch_name} (worktree: ${worktree_path}).
-Orchestrator herdr pane: ${orchestrator_pane}
-Your own herdr pane (use this literal value as "from=" below, do not use \$HERDR_PANE_ID — see note): ${self_pane}
-Harness root (use this literal value, do not use \$HERDR_HARNESS_ROOT — same reason as above): ${harness_root_literal}
+[TASK] orch:${orchestrator_pane} self:${self_pane}
+Task:${task_text}
 
-Task:
-${task_text}
-
-Rules:
-- Work only inside this worktree, following this repo's own CLAUDE.md/AGENTS.md and skill conventions.
-- IMPORTANT: \`herdr agent send\` only types text into the target pane's input box — it does NOT submit it, and firing \`herdr pane send-keys ... Enter\` immediately after (or even after a flat 1s sleep, for longer messages) is a real, observed race that can leave the message sitting unsubmitted in the Orchestrator's pane. Source the harness's retry-and-verify helper once per report instead of doing send/sleep/Enter by hand:
-    source ${harness_root_literal}/scripts/lib/herdr-report.sh
-  Then call \`herdr_submit <target_pane> "<message>"\` for every message below — it scales the settle delay to message length and retries the Enter (and, if needed, the send) until the target pane actually leaves "idle", instead of firing Enter once and hoping.
-- IMPORTANT: use the literal pane id ${self_pane} in the commands below, not a \$HERDR_PANE_ID shell expansion — even under --permission-mode auto, a command containing shell variable expansion still triggers a manual approval prompt (confirmed live), while the same command with a literal value does not.
-- IMPORTANT: \`herdr_submit\` REFUSES (and does not send) any message over 800 characters (HERDR_REPORT_MAX_CHARS) — keep every CROSS-REPO-REQUEST/TASK-DONE/TASK-BLOCKED report short and factual (a sentence or two). Put full detail — logs, diffs, long explanations — in the PR description or commit body, not in the herdr message. If \`herdr_submit\` refuses your report, shorten it and call it again; do not loop retrying the same oversized text.
-- If this task needs changes in a DIFFERENT repository, do NOT edit that repository yourself. Instead run:
-    herdr_submit ${orchestrator_pane} "[CROSS-REPO-REQUEST] repo=<owner/repo> branch=<suggested-branch> from=${self_pane} task=<short description>"
-  and continue your own work — never spawn other repos' agents yourself.
-- When you finish, run:
-    herdr_submit ${orchestrator_pane} "[TASK-DONE] from=${self_pane} summary=<concise summary, under the cap>"
-- If you get stuck and need a human, run:
-    herdr_submit ${orchestrator_pane} "[TASK-BLOCKED] from=${self_pane} reason=<short reason>"
-- If \`herdr_submit\` ever prints a WARNING that the pane never left idle, treat the report as NOT delivered — do not assume it went through. Re-run \`herdr pane read ${orchestrator_pane} --lines 30\` to check the actual state of the Orchestrator's input box before retrying.
+First action: use the Read tool to read ${harness_root_literal}/docs/prompts/worker-bootstrap.md completely. Do not start work until this succeeds.
 MSG
 }
 
@@ -185,6 +164,11 @@ main() {
   shift
   local task_text="$*"
   [[ -z "${task_text}" ]] && usage
+
+  if (( ${#task_text} > 500 )); then
+    echo "Error: Task description (${#task_text} chars) exceeds the 500-char limit. Please shorten it and try again." >&2
+    exit 1
+  fi
 
   require_herdr
 
@@ -261,6 +245,13 @@ main() {
 
   local message
   message="$(build_message "${repo_name}" "${branch_name}" "${worktree_path}" "${HERDR_PANE_ID}" "${task_text}" "${pane_id}" "${harness_root}")"
+
+  local max_chars="${HERDR_REPORT_MAX_CHARS:-800}"
+  if (( ${#message} > max_chars )); then
+    echo "Error: Initial task envelope (${#message} chars) exceeds the ${max_chars}-char cap. Please shorten the task description and try again." >&2
+    exit 1
+  fi
+
   herdr_submit "${pane_id}" "${message}" >&2
 
   echo "Dispatched to pane ${pane_id} (repo=${repo_name} branch=${branch_name})."
