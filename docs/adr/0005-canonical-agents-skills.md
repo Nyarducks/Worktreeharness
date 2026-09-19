@@ -3,7 +3,6 @@ type: ADR
 title: Canonical .agents/skills with per-agent config directories
 description: One skills directory shared by all agents; each agent keeps its own hooks config format.
 status: accepted
-author: Devin
 last_modified: 2026-09-20
 tags: [skills, agents, config]
 ---

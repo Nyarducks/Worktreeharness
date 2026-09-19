@@ -3,7 +3,6 @@ type: ADR
 title: Repo-local guard hooks with dual-root resolution
 description: Hooks separate SCRIPT_ROOT (checkout) from lab root (policy boundary); .env is read from both.
 status: accepted
-author: Devin
 last_modified: 2026-09-20
 tags: [hooks, security]
 ---

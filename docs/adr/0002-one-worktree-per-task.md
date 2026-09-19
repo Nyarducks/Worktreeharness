@@ -3,7 +3,6 @@ type: ADR
 title: One git worktree per task; base clones never edited
 description: All edits happen in isolated worktrees under worktree/; repos/ holds read-only base clones.
 status: accepted
-author: Devin
 last_modified: 2026-09-20
 tags: [worktree, isolation]
 ---

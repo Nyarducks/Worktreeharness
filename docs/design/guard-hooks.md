@@ -3,7 +3,6 @@ type: Design Doc
 title: Guard Hooks
 description: The repo-local PreToolUse policies that confine the orchestrator — dual-root resolution, ALLOWED_EXT_DIRS, and the unconditional rm safety net.
 status: current
-author: Devin
 last_modified: 2026-09-20
 tags: [hooks, security, agents]
 sources: [scripts/lib/rm-guard.sh, .claude/settings.json, .codex/hooks.json, .agents/hooks.json, .devin/hooks.v1.json]

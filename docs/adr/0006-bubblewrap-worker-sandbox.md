@@ -3,7 +3,6 @@ type: ADR
 title: Confine dispatched workers with bubblewrap, fail closed
 description: Agent-agnostic mount-namespace sandbox at spawn time; / read-only, $HOME and /tmp tmpfs, worktree + base .git writable.
 status: accepted
-author: Devin
 last_modified: 2026-09-20
 tags: [sandbox, bubblewrap, security, worker]
 ---

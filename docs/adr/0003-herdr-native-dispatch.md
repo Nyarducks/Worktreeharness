@@ -3,7 +3,6 @@ type: ADR
 title: Dispatch workers through herdr-native workspaces/tabs/panes
 description: One herdr workspace per repo, one tab per task, worker spawned in the tab's root pane.
 status: accepted
-author: Devin
 last_modified: 2026-09-20
 tags: [herdr, dispatch, orchestrator]
 ---

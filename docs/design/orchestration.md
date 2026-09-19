@@ -3,7 +3,6 @@ type: Design Doc
 title: Orchestration — Orchestrator and Worker lifecycle
 description: How the orchestrator dispatches, monitors, and steers workers through herdr; worker lifecycle and ownership.
 status: current
-author: Devin
 last_modified: 2026-09-20
 tags: [orchestrator, herdr, dispatch, worker]
 sources: [scripts/spawn-repo-agent.sh, .agents/skills/herdr-dispatch/SKILL.md]

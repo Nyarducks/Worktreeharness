@@ -3,7 +3,6 @@ type: Reference
 title: Agent config directories
 description: Which config directory each supported agent CLI reads, and what lives there.
 status: current
-author: Devin
 last_modified: 2026-09-20
 tags: [agents, config, reference]
 sources: [.claude, .codex, .agents, .devin]

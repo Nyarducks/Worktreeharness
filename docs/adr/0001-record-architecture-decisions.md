@@ -3,7 +3,6 @@ type: ADR
 title: Record architecture decisions
 description: ADRs live in docs/adr/, numbered sequentially, with OKF v0.2 frontmatter.
 status: accepted
-author: Devin
 last_modified: 2026-09-20
 tags: [adr, process]
 ---

@@ -3,7 +3,6 @@ type: Design Doc
 title: Worker Sandbox (bubblewrap)
 description: The OS-level confinement applied to dispatched workers — granted filesystem permissions, process isolation, and known limits.
 status: current
-author: Devin
 last_modified: 2026-09-20
 tags: [sandbox, bubblewrap, security]
 sources: [scripts/lib/sandbox-wrap.sh, tests/test-sandbox.sh]

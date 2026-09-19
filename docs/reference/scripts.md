@@ -3,7 +3,6 @@ type: Reference
 title: Harness Scripts
 description: Behavior contract of every script under scripts/ — what it does, what it writes, and what it prints.
 status: current
-author: Devin
 last_modified: 2026-09-20
 tags: [scripts, reference]
 sources: [scripts]

@@ -3,7 +3,6 @@ type: ADR
 title: Workers rename their own agent and tab
 description: The dispatcher uses a w-<uuid> placeholder; the worker picks a task-derived name via herdr after reading the prompt.
 status: accepted
-author: Devin
 last_modified: 2026-09-20
 tags: [herdr, naming, worker]
 ---
