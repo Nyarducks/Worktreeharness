@@ -20,17 +20,19 @@ resolve_harness_root() {
 }
 
 main() {
-  local input patch harness_root worktree_root path target
+  local input patch script_root harness_root worktree_root path target
   input="$(cat)"
   patch="$(jq -r '.tool_input.command // empty' <<< "$input")"
+  script_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
   harness_root="$(resolve_harness_root)"
   worktree_root="$(realpath -m "$harness_root/worktree")"
 
   local allowed_dirs=""
+  # scripts/lib/ and .env live in this script's checkout, not at the lab root.
   # shellcheck disable=SC1091
-  source "$harness_root/scripts/lib/rm-guard.sh" 2>/dev/null || true
+  source "$script_root/scripts/lib/rm-guard.sh" 2>/dev/null || true
   if declare -F load_allowed_ext_dirs > /dev/null; then
-    allowed_dirs="$(load_allowed_ext_dirs "$harness_root")"
+    allowed_dirs="$(load_allowed_ext_dirs "$harness_root"; load_allowed_ext_dirs "$script_root")"
   fi
 
   while IFS= read -r path; do

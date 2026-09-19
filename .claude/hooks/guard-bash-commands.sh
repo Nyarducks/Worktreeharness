@@ -29,13 +29,25 @@ main() {
   [[ -z "${COMMAND}" ]] && exit 0
   CWD="$(jq -r '.cwd // empty' <<< "${INPUT}")"
 
-  # Derive harness root from this script's own path: <HARNESS>/.claude/hooks/<script>
-  HARNESS_ROOT="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
+  # SCRIPT_ROOT = the checkout containing this script (scripts/lib/, .env).
+  # HARNESS_ROOT = nearest ancestor holding both repos/ and worktree/ — works
+  # whether the checkout IS the lab root or sits under <lab>/worktree/<repo>/<branch>.
+  local SCRIPT_ROOT DIR
+  SCRIPT_ROOT="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
+  DIR="${SCRIPT_ROOT}"
+  while [[ -n "${DIR}" && "${DIR}" != "/" ]]; do
+    if [[ -d "${DIR}/worktree" && -d "${DIR}/repos" ]]; then
+      HARNESS_ROOT="${DIR}"
+      break
+    fi
+    DIR="$(dirname "${DIR}")"
+  done
+  [[ -z "${HARNESS_ROOT}" ]] && HARNESS_ROOT="${SCRIPT_ROOT}"
   [[ -z "${HARNESS_ROOT}" || ! -d "${HARNESS_ROOT}" ]] && exit 0
   CWD="${CWD:-${HARNESS_ROOT}}"
 
   # shellcheck disable=SC1091
-  source "${HARNESS_ROOT}/scripts/lib/rm-guard.sh" 2>/dev/null || exit 0
+  source "${SCRIPT_ROOT}/scripts/lib/rm-guard.sh" 2>/dev/null || exit 0
 
   # 1) Always-on safety net, checked before any allowlist bypass.
   local RM_REASON
@@ -44,7 +56,7 @@ main() {
 
   # 2) Harness-root restriction, with ALLOWED_EXT_DIRS as a scoped escape hatch.
   local ALLOWED_DIRS
-  ALLOWED_DIRS="$(load_allowed_ext_dirs "${HARNESS_ROOT}")"
+  ALLOWED_DIRS="$(load_allowed_ext_dirs "${HARNESS_ROOT}"; load_allowed_ext_dirs "${SCRIPT_ROOT}")"
 
   local CANDIDATE TARGET
   while IFS= read -r CANDIDATE; do

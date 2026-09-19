@@ -173,11 +173,19 @@ By default every hook confines Read/Write/Bash access to the harness root (`repo
 ALLOWED_EXT_DIRS=~/.claude,/tmp
 ```
 
-`.env` is gitignored; this is a local, per-machine setting. External access is enabled precisely when `ALLOWED_EXT_DIRS` is non-empty, and only for the listed paths — there is no separate flag to bypass the harness-root restriction entirely.
+`.env` is gitignored; this is a local, per-machine setting. Hooks read `.env` from both the checkout root and the lab root (the directory holding `repos/` and `worktree/`), combining the lists — a single `.env` at the lab root covers every checkout. External access is enabled precisely when `ALLOWED_EXT_DIRS` is non-empty, and only for the listed paths — there is no separate flag to bypass the harness-root restriction entirely.
 
 ### rm safety net
 
 Independently of `ALLOWED_EXT_DIRS` every hook unconditionally blocks recursive `rm` commands (`rm -rf`, `sudo rm -r`, etc.) whose target resolves to `$HOME`, `/`, an ancestor of `$HOME` (e.g. `/home`), or another critical top-level directory (`/etc`, `/usr`, `/var`, ...), including glob forms like `rm -rf ~/*` that would wipe a directory's contents. This guards against an accidental `rm -rf ~` or `rm -rf /` — especially important when running Claude Code with `--dangerously-skip-permissions`, where hooks are the only remaining safety net.
+
+### Testing the hooks
+
+`tests/test-hooks.sh` simulates each agent's stdin JSON against a sandboxed lab and asserts every hook's allow/deny decision — covering both the split (`<lab>/worktree/<repo>/<branch>`) and unified (checkout = lab root) topologies, plus the `ALLOWED_EXT_DIRS` union and config command resolution:
+
+```bash
+bash tests/test-hooks.sh
+```
 
 ---
 

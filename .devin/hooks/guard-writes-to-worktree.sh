@@ -10,13 +10,15 @@ deny() {
   exit 0
 }
 
-# Output variable: MAIN_REPO
-# Harness root = nearest ancestor of this script that holds both repos/ and
-# worktree/. Walking up (rather than a fixed ../.. hop) keeps working whether
-# the checkout IS the lab root or lives under <lab>/worktree/<repo>/<branch>.
+# Output variables: SCRIPT_ROOT, MAIN_REPO
+# SCRIPT_ROOT = the checkout containing this script — scripts/lib/ and .env
+# live there. MAIN_REPO = nearest ancestor holding both repos/ and worktree/
+# (the lab root). They differ when the checkout sits under
+# <lab>/worktree/<repo>/<branch>.
 resolve_main_repo() {
   local dir
-  dir="$(realpath "$(dirname "$0")" 2>/dev/null)"
+  SCRIPT_ROOT="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
+  dir="${SCRIPT_ROOT}"
   while [[ -n "${dir}" && "${dir}" != "/" ]]; do
     if [[ -d "${dir}/repos" && -d "${dir}/worktree" ]]; then
       MAIN_REPO="${dir}"
@@ -34,7 +36,7 @@ main() {
 
   FP="$(realpath -m "${FP}" 2>/dev/null || echo "${FP}")"
 
-  local MAIN_REPO
+  local MAIN_REPO SCRIPT_ROOT
   resolve_main_repo
 
   local WORKTREE_DIR="${MAIN_REPO}/worktree"
@@ -43,10 +45,10 @@ main() {
   fi
 
   # shellcheck disable=SC1091
-  source "${MAIN_REPO}/scripts/lib/rm-guard.sh" 2>/dev/null
+  source "${SCRIPT_ROOT}/scripts/lib/rm-guard.sh" 2>/dev/null
   if declare -F load_allowed_ext_dirs >/dev/null; then
     local ALLOWED_DIRS
-    ALLOWED_DIRS="$(load_allowed_ext_dirs "${MAIN_REPO}")"
+    ALLOWED_DIRS="$(load_allowed_ext_dirs "${MAIN_REPO}"; load_allowed_ext_dirs "${SCRIPT_ROOT}")"
     if [[ -n "${ALLOWED_DIRS}" ]] && ext_dir_is_allowed "${FP}" "${ALLOWED_DIRS}"; then
       exit 0
     fi

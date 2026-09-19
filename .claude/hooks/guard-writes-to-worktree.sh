@@ -8,13 +8,24 @@ deny() {
   exit 0
 }
 
-# Output variable: MAIN_REPO
-# Derive harness root from this script's own path: <HARNESS>/.claude/hooks/<script>
-# Two dirname calls navigate up to the harness root — no CWD or env var dependency.
+# Output variables: SCRIPT_ROOT, MAIN_REPO
+# SCRIPT_ROOT = the checkout containing this script — scripts/lib/ and .env
+# live there. MAIN_REPO = nearest ancestor holding both repos/ and worktree/
+# (the lab root) — works whether the checkout IS the lab root or sits under
+# <lab>/worktree/<repo>/<branch>. They differ in a split layout.
 resolve_main_repo() {
-  MAIN_REPO="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
+  SCRIPT_ROOT="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
+  local DIR="${SCRIPT_ROOT}"
+  while [[ -n "${DIR}" && "${DIR}" != "/" ]]; do
+    if [[ -d "${DIR}/worktree" && -d "${DIR}/repos" ]]; then
+      MAIN_REPO="${DIR}"
+      return 0
+    fi
+    DIR="$(dirname "${DIR}")"
+  done
+  MAIN_REPO="${SCRIPT_ROOT}"
   if [[ -z "${MAIN_REPO}" || ! -d "${MAIN_REPO}" ]]; then
-    deny "Write blocked: could not determine harness root from hook path ($0). Expected layout: <root>/.claude/hooks/<hook>."
+    deny "Write blocked: could not determine harness root from hook path ($0)."
   fi
 }
 
@@ -25,7 +36,7 @@ main() {
 
   FP="$(realpath -m "${FP}" 2>/dev/null || echo "${FP}")"
 
-  local MAIN_REPO
+  local MAIN_REPO SCRIPT_ROOT
   resolve_main_repo
 
   local WORKTREE_DIR="${MAIN_REPO}/worktree"
@@ -34,10 +45,10 @@ main() {
   fi
 
   # shellcheck disable=SC1091
-  source "${MAIN_REPO}/scripts/lib/rm-guard.sh" 2>/dev/null
+  source "${SCRIPT_ROOT}/scripts/lib/rm-guard.sh" 2>/dev/null
   if declare -F load_allowed_ext_dirs >/dev/null; then
     local ALLOWED_DIRS
-    ALLOWED_DIRS="$(load_allowed_ext_dirs "${MAIN_REPO}")"
+    ALLOWED_DIRS="$(load_allowed_ext_dirs "${MAIN_REPO}"; load_allowed_ext_dirs "${SCRIPT_ROOT}")"
     if [[ -n "${ALLOWED_DIRS}" ]] && ext_dir_is_allowed "${FP}" "${ALLOWED_DIRS}"; then
       exit 0
     fi
