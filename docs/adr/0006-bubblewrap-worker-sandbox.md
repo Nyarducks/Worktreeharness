@@ -27,11 +27,11 @@ privileges. Devin's built-in `--sandbox` only covers one agent kind.
 (`scripts/lib/sandbox-wrap.sh`): `/` is read-only, `$HOME` and `/tmp` are
 tmpfs, and only the worktree, the base repo's `.git`, the herdr socket,
 and the agent's own config dirs stay writable. `$HOME`-installed binaries
-(the agent, `herdr`) are rebound at their PATH locations. ssh works via
-`known_hosts`/`config`/`SSH_AUTH_SOCK` while private keys stay hidden.
-Dispatch fails closed when `bwrap` is missing; `--no-sandbox` opts out.
-Sandboxed workers launch via `herdr pane run` because
-`agent start --kind` cannot inject a wrapper.
+(the agent, `herdr`) are rebound at their PATH locations. No ssh is bound
+at all — this harness clones and pushes over https via `gh`, so `~/.ssh`
+and `SSH_AUTH_SOCK` stay hidden. Dispatch fails closed when `bwrap` is
+missing; `--no-sandbox` opts out. Sandboxed workers launch via
+`herdr pane run` because `agent start --kind` cannot inject a wrapper.
 
 ## Consequences
 

@@ -136,8 +136,7 @@ else
   expect_file "/tmp write is ephemeral" "/tmp/wth-ephemeral-test" absent
 
   if [[ -d "${HOME}/.ssh" ]]; then
-    # private key material must stay hidden even though ~/.ssh exists
-    # inside the sandbox (known_hosts/config are bound for ssh remotes)
+    # remotes are https via `gh` — nothing under ~/.ssh is bound at all
     PRIV_MARKER="${HOME}/.ssh/wth-privkey-$$"
     touch "${PRIV_MARKER}"
     out="$(run_sandbox 'ls ~/.ssh')"
@@ -146,7 +145,7 @@ else
   fi
   if [[ -S "${SSH_AUTH_SOCK:-}" ]]; then
     run_sandbox 'test -S "${SSH_AUTH_SOCK}"' > /dev/null 2>&1
-    expect_rc "ssh agent socket reachable" "$?" 0
+    expect_rc "ssh agent socket not bound" "$?" 1
   fi
   if [[ -S "${HOME}/.config/herdr/herdr.sock" ]]; then
     run_sandbox 'test -S ~/.config/herdr/herdr.sock' > /dev/null 2>&1

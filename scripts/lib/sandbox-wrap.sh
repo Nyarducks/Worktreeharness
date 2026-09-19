@@ -16,8 +16,8 @@
 #                would otherwise vanish with the tmpfs'd $HOME
 #   herdr socket dir  rw — workers self-rename via `herdr agent rename`
 #   gh/gitconfig  ro — https push credentials; readable but not writable
-#   ssh          only known_hosts/config (ro) + SSH_AUTH_SOCK — private keys
-#                stay hidden; ssh remotes still work via the agent socket
+#   ssh          nothing — remotes are https via `gh`, so ~/.ssh and
+#                SSH_AUTH_SOCK are left hidden entirely
 #
 # sandbox_wrap_cmd <worktree> <kind> <argv...>
 #   Prints a shell-quoted command line "bwrap ... -- <argv>" on stdout.
@@ -89,14 +89,8 @@ sandbox_wrap_cmd() {
   sandbox_bind args ro "${HOME}/.git-credentials"
   sandbox_bind args ro "${HOME}/.netrc"
 
-  # ssh remotes keep working via the agent socket and public config, but
-  # private key material stays hidden inside the tmpfs'd $HOME.
-  if [[ -d "${HOME}/.ssh" ]]; then
-    args+=(--dir "${HOME}/.ssh")
-    sandbox_bind args ro "${HOME}/.ssh/known_hosts"
-    sandbox_bind args ro "${HOME}/.ssh/config"
-  fi
-  [[ -S "${SSH_AUTH_SOCK:-}" ]] && args+=(--bind "${SSH_AUTH_SOCK}" "${SSH_AUTH_SOCK}")
+  # No ssh: this harness clones and pushes over https via `gh`, so ~/.ssh
+  # and SSH_AUTH_SOCK stay hidden inside the tmpfs'd $HOME.
 
   # Per-agent CLI state — the agent must be able to write its own
   # config/session dirs even though the rest of $HOME is hidden.

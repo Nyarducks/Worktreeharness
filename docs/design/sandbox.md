@@ -29,8 +29,7 @@ the target repo ships no hooks at all.
 | `~/.config/herdr` | read/write | Herdr socket + config — needed for `herdr agent rename`/`tab rename` |
 | `~/.config/gh` | read/write | `gh` auth token and CLI state for pushes/PRs |
 | `~/.gitconfig`, `~/.git-credentials`, `~/.netrc` | read-only | Git identity and HTTPS credentials; usable but not modifiable |
-| `~/.ssh/known_hosts`, `~/.ssh/config` | read-only | SSH remotes keep working; **private keys stay hidden** |
-| `$SSH_AUTH_SOCK` | bound socket | ssh-agent signing without exposing key material |
+| `~/.ssh`, `$SSH_AUTH_SOCK` | **not bound at all** | This harness clones/pushes over https via `gh` — no ssh in the sandbox, private keys and the agent socket stay hidden |
 | Agent binary under `$HOME` (e.g. `~/.local/bin/devin`, `~/.local/bin/herdr`) | bound at PATH location | Rebound so the tmpfs'd `$HOME` doesn't hide the CLI; `herdr` is always rebound for self-rename |
 | Agent config dir (per `--kind`) | read/write | The CLI's own session/auth state: `~/.claude`+`~/.claude.json`, `~/.config/devin`+`~/.local/share/devin`+`~/.devin`, `~/.gemini`, `~/.codex` |
 
@@ -50,6 +49,9 @@ explicitly.
 
 - `repos/<repo>/.git` is writable — a worker could touch other refs of the
   same repo. Far narrower than arbitrary filesystem write, but not zero.
+- A repo whose remote uses an SSH URL (`git@github.com:...`) cannot push
+  from inside the sandbox — this harness only supports https remotes via
+  `gh`.
 - Any binary the worker can reach may be executed; the sandbox restricts
   *where it can write*, not what it runs.
 
