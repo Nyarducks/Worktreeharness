@@ -97,7 +97,9 @@ dangerous-`rm` blocklist (recursive deletes of `$HOME`, `/`, `/home`,
 Shared core for the per-agent `PreToolUse` guard hooks. Resolves the
 script root (from the hook path) and the harness root (walk-up to the
 nearest `repos/` + `worktree/` ancestor), runs the command-token and
-path-list guard checks, unions `ALLOWED_EXT_DIRS` from both roots, and
+path-list guard checks, builds the allowlist (`known_agent_dirs` —
+every supported agent's own config dir — plus `ALLOWED_EXT_DIRS` from
+both roots' `.env`), and
 emits each agent kind's deny JSON (claude/codex `permissionDecision`,
 agy `deny`, devin `block`). The files under `.<agent>/hooks/` are thin
 adapters supplying only the agent kind and stdin JSON field names;

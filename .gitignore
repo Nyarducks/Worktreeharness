@@ -4,15 +4,3 @@ tools/
 worktree/
 .env
 
-# Ignore locally-added skills; only track the ones committed here
-# (.claude/skills is a symlink to .agents/skills — the canonical location
-# shared by codex, devin, and antigravity)
-.agents/skills/*
-!.agents/skills/git-operations/
-!.agents/skills/git-operations/**
-!.agents/skills/workflow-shell-test/
-!.agents/skills/workflow-shell-test/**
-!.agents/skills/worktree-development/
-!.agents/skills/worktree-development/**
-!.agents/skills/worktreeharness-development/
-!.agents/skills/worktreeharness-development/**

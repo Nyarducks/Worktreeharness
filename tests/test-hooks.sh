@@ -52,6 +52,7 @@ run_matrix() {
   expect_allow "${tag} claude read: inside root"       "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "${inside}" "${co}")"
   expect_deny  "${tag} claude read: /etc/shadow"       "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "/etc/shadow" "${co}")"
   expect_allow "${tag} claude read: allowlisted"       "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "${ext_a}/f.txt" "${co}")"
+  expect_allow "${tag} claude read: agent dir builtin" "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "${HOME}/.codex/config.toml" "${co}")"
 
   expect_allow "${tag} claude bash: ls"                "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "ls -la" "${co}")"
   expect_deny  "${tag} claude bash: rm -rf ~"          "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "rm -rf ~" "${co}")"
@@ -82,11 +83,13 @@ run_matrix() {
   expect_deny  "${tag} codex bash: rm -rf ~"           "${h_codex}/guard-bash-commands.sh" "$(pj_cmd "rm -rf ~" "${co}")"
   expect_deny  "${tag} codex bash: cat /etc/passwd"    "${h_codex}/guard-bash-commands.sh" "$(pj_cmd "cat /etc/passwd" "${co}")"
   expect_allow "${tag} codex bash: allowlisted path"   "${h_codex}/guard-bash-commands.sh" "$(pj_cmd "cat ${ext_b}/f.txt" "${co}")"
+  expect_allow "${tag} codex bash: agent dir builtin"  "${h_codex}/guard-bash-commands.sh" "$(pj_cmd "cat ${HOME}/.gemini/settings.json" "${co}")"
 
   # ---- devin (.devin/hooks.v1.json format) ----
   expect_allow "${tag} devin write: inside worktree"   "${h_devin}/guard-writes-to-worktree.sh" "$(pj_file "${inside}" "${co}")"
   expect_deny  "${tag} devin write: outside lab"       "${h_devin}/guard-writes-to-worktree.sh" "$(pj_file "${outside}" "${co}")"
   expect_allow "${tag} devin write: checkout .env dir" "${h_devin}/guard-writes-to-worktree.sh" "$(pj_file "${ext_a}/f.txt" "${co}")"
+  expect_allow "${tag} devin write: agent dir builtin" "${h_devin}/guard-writes-to-worktree.sh" "$(pj_file "${HOME}/.claude/settings.json" "${co}")"
 
   expect_allow "${tag} devin read: inside root"        "${h_devin}/restrict-to-repo-root.sh" "$(pj_file "${inside}" "${co}")"
   expect_deny  "${tag} devin read: /etc/shadow"        "${h_devin}/restrict-to-repo-root.sh" "$(pj_file "/etc/shadow" "${co}")"
