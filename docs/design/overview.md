@@ -90,72 +90,47 @@ flowchart TB
     WTB -->|shared .git| Repos
 ```
 
+## Directory layout
+
+```
+<lab root>/
+├── repos/<repo>/                    # Base clones — read-only, never edited
+├── worktree/<repo>/<branch>/        # Active worktrees — all edits happen here
+├── scripts/                         # Harness scripts + git hooks + lib/
+├── .agents/                         # canonical skills + Antigravity config
+├── .claude/                         # Claude Code config (skills → symlink)
+├── .codex/                          # Codex hooks
+├── .devin/                          # Devin CLI hooks
+├── docs/design/                     # design docs (OKF v0.2)
+├── docs/adr/                        # architecture decision records
+└── tests/                           # shell test suites
+```
+
+Two topologies are supported: **split** (`<lab>/worktree/<repo>/<branch>`
+checkouts under a shared lab root) and **unified** (the checkout is itself
+the lab root). Every hook resolves `SCRIPT_ROOT` (the checkout — shared
+libs, checkout `.env`) separately from the lab root (`repos/` + `worktree/`
+ancestor — the policy boundary). See ADR-0007.
+
 ## Components
 
 | Component | Responsibility | Doc |
 |---|---|---|
 | Orchestrator | Receives the human's request, dispatches workers, reports worker status on request. Does no implementation work itself | [orchestration.md](orchestration.md) |
 | Worker | Executes the task inside its assigned worktree; may use repo-local and global skills; cannot access outside its worktree | [orchestration.md](orchestration.md) |
-| Harness scripts | `setup-repo`, `create-worktree`, `spawn-repo-agent` — the mechanics of import, isolation, dispatch | [scripts.md](scripts.md) |
-| Guard hooks | Repo-local `PreToolUse` policies confining the orchestrator's own file/shell access | [agent-integrations.md](agent-integrations.md) |
 | Worker sandbox | bubblewrap mount namespace confining a worker to its worktree | [sandbox.md](sandbox.md) |
+| Guard hooks | Repo-local `PreToolUse` policies confining the orchestrator's own file/shell access | [agent-integrations.md](agent-integrations.md) |
+| Agent configs | Per-CLI config dirs + canonical `.agents/skills` | [agent-integrations.md](agent-integrations.md) |
 | Skills | Slash-command procedures available to the orchestrator | [skills.md](skills.md) |
+| Harness scripts | `setup-repo`, `create-worktree`, `spawn-repo-agent` — import, isolation, dispatch | [scripts.md](scripts.md) |
 
-## Key flows
+## Security posture
 
-### Dispatch
-
-```mermaid
-sequenceDiagram
-    participant H as Human
-    participant O as Orchestrator
-    participant G as git (repos/worktree)
-    participant R as herdr
-    participant W as Worker
-
-    H->>O: "do task X in repo R"
-    O->>G: create-worktree.sh → worktree/R/task/<uuid>
-    O->>R: workspace get/create (label = repo)<br/>tab create → pane id
-    O->>R: pane run — bwrap-wrapped agent, cwd=worktree
-    O->>R: agent prompt <pane> (task + self-name preamble)
-    R->>W: start in sandbox
-    W->>R: agent rename / tab rename (task slug)
-    O->>R: agent wait <pane> --until idle (on request)
-    O->>H: report status
-```
-
-### Confinement
-
-```mermaid
-flowchart LR
-    subgraph Sandbox["worker mount namespace"]
-        A["/ — read-only"]
-        B["$HOME, /tmp — tmpfs (ephemeral)"]
-        C["worktree — rw"]
-        D["repos/&lt;repo&gt;/.git — rw"]
-        E["herdr socket, agent config — rw"]
-    end
-    Host["everything else on the host:<br/>unreachable or read-only"]
-    Sandbox --> Host
-```
-
-## Security
-
-- Orchestrator file access is confined by repo-local `PreToolUse` hooks
-  (advisory — they assume a cooperating agent runtime).
-- Workers are confined by a kernel mount namespace: `/` read-only,
-  `$HOME`/`/tmp` ephemeral, only the worktree and the base repo's `.git`
-  writable. Credentials outside the agent's own config stay hidden; no
-  ssh material is bound.
-- Sandbox construction is fail-closed: no `bwrap`, no dispatch.
-
-## Known issues
-
-- A worker can touch other refs of its repo through the writable base
-  `.git` — the smallest hole that keeps `git commit` working.
-- Network is shared; confinement is filesystem + process only.
-- Hooks remain advisory and evadable — the sandbox is the enforcement
-  layer for workers; hooks protect against orchestrator accidents.
+- Orchestrator file access is confined by repo-local `PreToolUse` hooks —
+  advisory, assuming a cooperating agent runtime.
+- Workers are confined by a kernel mount namespace — enforcement, not
+  advice. Details: [sandbox.md](sandbox.md).
+- Dispatch is fail-closed: no `bwrap`, no sandboxed worker.
 
 ## Testing
 
@@ -164,18 +139,12 @@ bash tests/test-hooks.sh     # guard-hook allow/deny matrix
 bash tests/test-sandbox.sh   # bwrap confinement
 ```
 
-## Operations
-
-- Dispatch: `scripts/spawn-repo-agent.sh <repo> -- "<task>"`
-- Monitor: `herdr agent wait/read/prompt <pane>`
-- Cleanup: remove task worktree + branch, close the herdr tab
-
 ## References
 
-- herdr CLI — terminal workspace manager for agent processes
+- herdr — terminal workspace manager for agent processes
 - bubblewrap — https://github.com/containers/bubblewrap
 - git worktree — https://git-scm.com/docs/git-worktree
-- Google Open Knowledge Format v0.2 — doc frontmatter convention used in `docs/`
+- Google Open Knowledge Format v0.2 — frontmatter convention used in `docs/`
 
 ## Notes
 

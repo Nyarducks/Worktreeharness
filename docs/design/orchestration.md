@@ -1,7 +1,7 @@
 ---
 type: Design Doc
-title: Orchestration — Asking the Orchestrator to Run Workers
-description: How a human asks the orchestrator to dispatch work, what the worker lifecycle looks like, and how monitoring and cleanup work.
+title: Orchestration — Orchestrator and Worker lifecycle
+description: How the orchestrator dispatches, monitors, and steers workers through herdr; worker lifecycle and ownership.
 status: current
 author: Devin
 last_modified: 2026-09-20
@@ -11,22 +11,30 @@ sources: [scripts/spawn-repo-agent.sh, .agents/skills/herdr-dispatch/SKILL.md]
 
 # Orchestration
 
-## Use case
+## Goal
+
+Let the human delegate work to a separate worker process that runs inside
+the target repository — so the repo's own `AGENTS.md` and `.agents/skills`
+load — while the orchestrator retains control through herdr.
+
+## Design
 
 ```mermaid
 sequenceDiagram
     participant H as Human
     participant O as Orchestrator
+    participant G as git
     participant R as herdr
     participant W as Worker
 
     H->>O: "do task X in repo R"
-    O->>O: spawn-repo-agent.sh
-    Note over O: worktree + workspace + tab,<br/>sandboxed spawn, prompt
-    O->>R: agent prompt <pane>
-    R->>W: task + self-name preamble
+    O->>G: create-worktree.sh → worktree/R/task/<uuid>
+    O->>R: workspace get/create (label = repo)<br/>tab create → pane
+    O->>R: pane run — bwrap-wrapped agent, cwd=worktree
+    O->>R: agent prompt (task + self-name preamble)
+    R->>W: start in sandbox
     W->>R: agent rename / tab rename
-    W->>W: implement in task worktree
+    W->>W: implement inside worktree
     H->>O: "how is it going?"
     O->>R: agent wait / read <pane>
     O->>H: status report
@@ -34,67 +42,45 @@ sequenceDiagram
     O->>R: agent prompt <pane> (follow-up)
 ```
 
-The human talks to one agent — the **Orchestrator** — running at the lab
-root. To run work in another repo, ask the orchestrator in natural
-language:
+Key decisions (see ADR-0003, ADR-0004):
 
-> "Dispatch a worker to `owner/SomeRepo` to add retry logic to the
-> webhook handler."
+- **Herdr-native model**: one workspace per repo (matched by label), one
+  tab per task, the worker in the tab's root pane. No harness-side state
+  to keep in sync.
+- **Self-naming**: agents spawn as `w-<uuid>`; the prompt preamble asks
+  the worker to rename itself and its tab once it understands the task.
+  The worker knows nothing about the harness — the preamble is the whole
+  contract.
+- **Pull-based monitoring**: workers carry no reporting protocol;
+  `herdr agent wait/read/prompt` is the interface.
 
-The orchestrator invokes `/herdr-dispatch`, which calls
-`scripts/spawn-repo-agent.sh owner/SomeRepo -- "add retry logic to the
-webhook handler"`. One call performs the whole sequence: import/refresh
-the base repo, create `worktree/SomeRepo/task/<uuid>` on `task/<uuid>`,
-reuse or create the `SomeRepo` herdr workspace with a new tab, and launch
-a sandboxed agent there with the task as its initial prompt.
+## Responsibilities
 
-Direct CLI usage (equivalent):
-
-```bash
-scripts/spawn-repo-agent.sh owner/SomeRepo -- "<task>"
-scripts/spawn-repo-agent.sh --kind agy owner/SomeRepo -- "<task>"
-scripts/spawn-repo-agent.sh --no-sandbox owner/SomeRepo -- "<task>"
-```
-
-## Worker lifecycle
-
-1. **Spawn** — placeholder name `w-<uuid>`; cwd is the task worktree, so
-   the target repo's own `AGENTS.md` and `.agents/skills` load. The worker
-   knows nothing about Worktreeharness.
-2. **Self-naming** — the initial prompt embeds a preamble asking the
-   worker to rename itself (`herdr agent rename <pane> <slug>`) and its
-   tab (`herdr tab rename <tab> <title>`) once it understands the task.
-3. **Work** — commits happen inside the task worktree; the sandbox allows
-   writing only to that worktree and the base repo's `.git`.
-4. **Follow-ups** — `herdr agent prompt <pane> "<more work>"` sends
-   additional tasks to the same agent in place.
-
-## Monitoring (pull-based)
-
-Workers carry no reporting protocol. The orchestrator checks on demand:
-
-```bash
-herdr agent wait <pane> --until idle   # block until the worker settles
-herdr agent read <pane>                # inspect recent output
-herdr agent prompt <pane> "<msg>"      # follow-up
-```
+- **Orchestrator**: workspace and worker lifecycle management, status
+  checks on request. Does not perform the delegated work itself.
+- **Worker**: executes the task in its worktree; may use repo-local and
+  global skills; cannot access outside its worktree (enforced by the
+  sandbox — see [sandbox.md](sandbox.md)).
 
 ## Ownership and cleanup
 
-A dispatched worktree is owned by its worker for as long as follow-up work
-may be routed to it. The orchestrator must not edit it directly; send
-follow-ups through the worker instead. After the task is done and the
-human approves, remove the worktree and branch:
+A dispatched worktree belongs to its worker while follow-up work may be
+routed there — the orchestrator never edits it directly. After the task is
+done and the human approves, remove the worktree + branch and close the
+tab.
 
-```bash
-git -C repos/<repo> worktree remove ../../worktree/<repo>/task/<uuid>
-git -C repos/<repo> branch -d task/<uuid>
-herdr tab close <tab>
-```
+## Security
 
-## When to use which mode
+Workers run inside the bubblewrap sandbox by default (fail-closed without
+`bwrap`; `--no-sandbox` opts out). Sandboxed workers launch via
+`herdr pane run` because `agent start --kind` cannot inject a wrapper.
 
-| Mode | When |
-|---|---|
-| `/parallel-worktree` (in-process) | Quick edits, tasks that need the harness's own skills, or when herdr is unavailable |
-| `/herdr-dispatch` (worker process) | Independent tasks, cross-repo work, long-running jobs, or anything that benefits from the target repo's own agent config loading |
+## Testing
+
+Covered indirectly by `tests/test-sandbox.sh` (spawn command construction)
+and live-verified dispatch (self-naming, confined writes).
+
+## Notes
+
+When herdr is unavailable, `/parallel-worktree` (in-process worktree work)
+is the fallback — no worker process is spawned.

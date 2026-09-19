@@ -11,6 +11,12 @@ sources: [.claude/settings.json, .codex/hooks.json, .agents/hooks.json, .devin/h
 
 # Agent Integrations and Guard Hooks
 
+## Goal
+
+Give every supported agent CLI the same three confinement policies in its
+own native hook format, plus a single shared skills directory — without
+per-agent drift.
+
 ## Config directories
 
 Each supported agent reads its own config directory; the same three

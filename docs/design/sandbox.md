@@ -11,11 +11,29 @@ sources: [scripts/lib/sandbox-wrap.sh, tests/test-sandbox.sh]
 
 # Worker Sandbox
 
-Dispatched workers run inside a **bubblewrap mount namespace** built by
-`scripts/lib/sandbox-wrap.sh`. This is a kernel-enforced boundary that
-applies to any agent CLI and all of its subprocesses — unlike repo-local
-hooks, it cannot be bypassed by obfuscated shell and it applies even when
-the target repo ships no hooks at all.
+## Goal
+
+Confine a dispatched worker to its assigned worktree at the OS level —
+agent-agnostic, covering every subprocess, independent of whether the
+target repo ships hooks.
+
+## Design
+
+`scripts/lib/sandbox-wrap.sh` builds a **bubblewrap mount namespace**
+around the agent command: a kernel-enforced boundary, not an advisory
+check. Unlike repo-local hooks it cannot be bypassed by obfuscated shell.
+
+```mermaid
+flowchart LR
+    subgraph NS["worker mount namespace"]
+        WT["worktree — rw"]
+        GIT["repos/&lt;repo&gt;/.git — rw"]
+        CFG["herdr socket, agent config — rw"]
+        TMP["$HOME, /tmp — tmpfs"]
+    end
+    SYS["/ — read-only<br/>ssh keys, other creds — hidden"]
+    NS --- SYS
+```
 
 ## Filesystem permissions
 
