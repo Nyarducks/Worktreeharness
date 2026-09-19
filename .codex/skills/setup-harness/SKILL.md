@@ -30,12 +30,11 @@ scripts/setup-repo.sh
 scripts/create-worktree.sh
 scripts/setup-hooks.sh
 scripts/lib/rm-guard.sh
-scripts/lib/worktree-ownership.sh
 repos/
 worktree/
 ```
 
-Copy the harness scripts (including both `scripts/lib/*.sh` guard libraries), `.codex/hooks.json`, both files in `.codex/hooks/`, and the required `.codex/skills/*/SKILL.md` files from this repository. Make shell scripts executable, install Git hooks with `scripts/setup-hooks.sh`, and add `repos/`, `tmp/`, `worktree/`, and `.runtime/` to `.gitignore`.
+Copy the harness scripts (including the `scripts/lib/rm-guard.sh` guard library), `.codex/hooks.json`, both files in `.codex/hooks/`, and the required `.codex/skills/*/SKILL.md` files from this repository. Make shell scripts executable, install Git hooks with `scripts/setup-hooks.sh`, and add `repos/`, `tmp/`, and `worktree/` to `.gitignore`.
 
 Add an `AGENTS.md` file that states these invariants:
 

@@ -39,7 +39,6 @@ cp $HARNESS/scripts/create-worktree.sh  $TARGET/scripts/
 cp $HARNESS/scripts/setup-hooks.sh      $TARGET/scripts/
 cp $HARNESS/scripts/hooks/pre-commit    $TARGET/scripts/hooks/
 cp $HARNESS/scripts/lib/rm-guard.sh     $TARGET/scripts/lib/
-cp $HARNESS/scripts/lib/worktree-ownership.sh $TARGET/scripts/lib/
 chmod +x $TARGET/scripts/*.sh $TARGET/scripts/hooks/pre-commit
 ```
 
@@ -101,7 +100,6 @@ bash $TARGET/scripts/setup-hooks.sh
 repos/
 tmp/
 worktree/
-.runtime/
 ```
 
 ### 1-8. Create CLAUDE.md
