@@ -48,7 +48,7 @@ scripts/spawn-repo-agent.sh <owner>/<repo> -- "<task description>"
 
 | Doc | Contents |
 |---|---|
-| `docs/design/overview.md` | Why this exists — goal, requirements, high-level architecture |
+| `docs/design/` | Design docs — start at `overview` (rendered as the dir README) |
 | `docs/design/orchestration.md` | How to ask the orchestrator to run workers; lifecycle, monitoring, cleanup |
 | `docs/design/sandbox.md` | Worker sandbox permission model |
 | `docs/design/guard-hooks.md` | Guard-hook policies, `ALLOWED_EXT_DIRS` |

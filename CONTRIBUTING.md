@@ -13,7 +13,7 @@ scripts/create-worktree.sh <owner>/<repo> feat/<topic>
 ```
 
 Base clones under `repos/` are never edited. See
-`docs/design/overview.md` for the layout.
+`docs/design/README.md` for the layout.
 
 ## Git workflow
 
