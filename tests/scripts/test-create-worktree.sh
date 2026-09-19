@@ -4,6 +4,7 @@
 # overwrite an existing worktree, and installs harness git hooks.
 set -uo pipefail
 
+# shellcheck source=tests/scripts/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 lab="${t}/lab"

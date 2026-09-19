@@ -49,6 +49,12 @@ PRs.
 Installs the git hooks in `scripts/hooks/` as symlinks into the common git
 dir. Safe to run from the base repo or any worktree.
 
+### `lint.sh`
+
+Runs shellcheck over every tracked shell file (`*.sh` plus the
+extension-less git hooks). Prefers the portable, gitignored
+`tools/shellcheck` install; falls back to shellcheck on PATH.
+
 ## scripts/hooks/
 
 | Hook | Behavior |

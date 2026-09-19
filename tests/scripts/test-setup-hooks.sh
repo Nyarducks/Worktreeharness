@@ -4,6 +4,7 @@
 # (hooks must land in the shared .git, not the worktree's private one).
 set -uo pipefail
 
+# shellcheck source=tests/scripts/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 echo "== installs into main repo =="
@@ -18,7 +19,11 @@ out="$(bash "${repo}/scripts/setup-hooks.sh")"
 expect_grep "reports install" "${out}" "git hooks installed"
 hook="${repo}/.git/hooks/pre-commit"
 expect_file "pre-commit symlink" "${hook}" exists
-[[ -L "${hook}" ]] && ok "installed as symlink" || bad "installed as symlink"
+if [[ -L "${hook}" ]]; then
+  ok "installed as symlink"
+else
+  bad "installed as symlink"
+fi
 
 echo "== from a linked worktree, hooks land in the common git dir =="
 

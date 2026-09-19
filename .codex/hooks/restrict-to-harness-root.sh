@@ -37,6 +37,7 @@ main() {
 
   # scripts/lib/ and .env live in this script's checkout, not at the lab root.
   # shellcheck disable=SC1091
+  # shellcheck source=scripts/lib/rm-guard.sh
   source "$script_root/scripts/lib/rm-guard.sh" 2>/dev/null || true
 
   # Always-on safety net: never allow a recursive rm on $HOME, /, or another

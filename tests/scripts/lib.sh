@@ -26,7 +26,11 @@ expect_rc() { # <name> <rc> <want: 0|nz>
   fi
 }
 expect_eq() { # <name> <got> <want>
-  [[ "$2" == "$3" ]] && ok "$1" || { bad "$1"; printf '       got=%s want=%s\n' "$2" "$3"; }
+  if [[ "$2" == "$3" ]]; then
+    ok "$1"
+  else
+    bad "$1"; printf '       got=%s want=%s\n' "$2" "$3"
+  fi
 }
 expect_file() { # <name> <path> <exists|absent>
   if [[ "$3" == exists && -e "$2" ]] || [[ "$3" == absent && ! -e "$2" ]]; then
@@ -35,8 +39,20 @@ expect_file() { # <name> <path> <exists|absent>
     bad "$1"; printf '       path=%s\n' "$2"
   fi
 }
-expect_grep()     { [[ "$2" == *"$3"* ]] && ok "$1" || { bad "$1"; printf '       missing: %s\n' "$3"; }; }
-expect_not_grep() { [[ "$2" != *"$3"* ]] && ok "$1" || { bad "$1"; printf '       unexpected: %s\n' "$3"; }; }
+expect_grep() { # <name> <haystack> <needle>
+  if [[ "$2" == *"$3"* ]]; then
+    ok "$1"
+  else
+    bad "$1"; printf '       missing: %s\n' "$3"
+  fi
+}
+expect_not_grep() { # <name> <haystack> <needle>
+  if [[ "$2" != *"$3"* ]]; then
+    ok "$1"
+  else
+    bad "$1"; printf '       unexpected: %s\n' "$3"
+  fi
+}
 
 # --- stub builders -----------------------------------------------------------
 

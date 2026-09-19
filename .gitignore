@@ -1,5 +1,6 @@
 repos/
 tmp/
+tools/
 worktree/
 .env
 

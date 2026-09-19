@@ -4,6 +4,7 @@
 # `gh` is stubbed so clone resolves against a local bare origin.
 set -uo pipefail
 
+# shellcheck source=tests/scripts/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 lab="${t}/lab"
@@ -28,7 +29,11 @@ git -C "${seed}" push -q "${STUB_ORIGIN}/TestRepo.git" main
 before="$(git -C "${lab}/repos/TestRepo" rev-parse origin/main)"
 WORKTREE_LAB_DIR="${lab}" "${repo_root}/scripts/setup-repo.sh" owner/TestRepo > /dev/null
 after="$(git -C "${lab}/repos/TestRepo" rev-parse origin/main)"
-[[ "${before}" != "${after}" ]] && ok "existing clone fetches updates" || bad "existing clone fetches updates"
+if [[ "${before}" != "${after}" ]]; then
+  ok "existing clone fetches updates"
+else
+  bad "existing clone fetches updates"
+fi
 
 echo "== org resolution =="
 

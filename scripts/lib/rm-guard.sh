@@ -41,6 +41,8 @@ rm_guard_resolve_token() {
 
   tok="${tok//\$\{HOME\}/${home}}"
   tok="${tok//\$HOME/${home}}"
+  # "~/" is an intentional literal-tilde match, not an expansion.
+  # shellcheck disable=SC2088
   if [[ "${tok}" == "~" ]]; then
     tok="${home}"
   elif [[ "${tok}" == "~/"* ]]; then
@@ -137,6 +139,7 @@ load_allowed_ext_dirs() {
   local harness_root="$1"
   if [[ -f "${harness_root}/.env" ]]; then
     # shellcheck disable=SC1090
+    # shellcheck source=/dev/null
     source "${harness_root}/.env"
   fi
   [[ -z "${ALLOWED_EXT_DIRS:-}" ]] && return 0

@@ -48,6 +48,7 @@ main() {
 
   # Check ALLOWED_EXT_DIRS escape hatch
   # shellcheck disable=SC1091
+  # shellcheck source=scripts/lib/rm-guard.sh
   source "${script_root}/scripts/lib/rm-guard.sh" 2>/dev/null || true
   if declare -F load_allowed_ext_dirs >/dev/null; then
     local allowed_dirs

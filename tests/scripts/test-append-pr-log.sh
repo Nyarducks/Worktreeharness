@@ -5,6 +5,7 @@
 # $GH_STUB_BODY_FILE, PATCH captures the submitted body back into it.
 set -uo pipefail
 
+# shellcheck source=tests/scripts/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 stub_gh
@@ -27,7 +28,7 @@ expect_grep "inner content included" "${body}" "did X"
 
 echo "== appends under existing header without duplicating it =="
 
-second="$(printf '### What changed\n- did Y\n' | "${repo_root}/scripts/append-pr-log.sh" o/r 1 "${wt}")" > /dev/null
+printf '### What changed\n- did Y\n' | "${repo_root}/scripts/append-pr-log.sh" o/r 1 "${wt}" > /dev/null
 body="$(cat "${GH_STUB_BODY_FILE}")"
 expect_eq "header appears once" "$(grep -c '## Decision Logs' <<<"${body}")" "1"
 expect_grep "second entry appended" "${body}" "did Y"

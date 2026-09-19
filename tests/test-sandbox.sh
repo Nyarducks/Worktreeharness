@@ -38,8 +38,20 @@ expect_file() { # <name> <path> <exists|absent>
     bad "$1"; printf '       path=%s\n' "$2"
   fi
 }
-expect_grep()     { [[ "$2" == *"$3"* ]] && ok "$1" || { bad "$1"; printf '       missing: %s\n' "$3"; }; }
-expect_not_grep() { [[ "$2" != *"$3"* ]] && ok "$1" || { bad "$1"; printf '       unexpected: %s\n' "$3"; }; }
+expect_grep() { # <name> <haystack> <needle>
+  if [[ "$2" == *"$3"* ]]; then
+    ok "$1"
+  else
+    bad "$1"; printf '       missing: %s\n' "$3"
+  fi
+}
+expect_not_grep() { # <name> <haystack> <needle>
+  if [[ "$2" != *"$3"* ]]; then
+    ok "$1"
+  else
+    bad "$1"; printf '       unexpected: %s\n' "$3"
+  fi
+}
 
 # run_sandbox <bash-script> [kind] — run <script> inside the wrapped sandbox,
 # against worktree $wt (set by the caller). Prints captured output.
@@ -74,8 +86,14 @@ out="$(sandbox_wrap_cmd "/some/wt" claude bash)"
 expect_not_grep "missing path not bound" "${out}" "${missing}"
 
 # bwrap missing → rc 3 (fail closed at the call site)
+# shellcheck disable=SC2123
 ( PATH="/nonexistent"; sandbox_wrap_cmd "/x" claude bash ) > /dev/null 2>&1
-[[ $? -eq 3 ]] && ok "bwrap missing -> rc 3" || bad "bwrap missing -> rc 3"
+rc=$?
+if [[ "${rc}" -eq 3 ]]; then
+  ok "bwrap missing -> rc 3"
+else
+  bad "bwrap missing -> rc 3"
+fi
 
 # per-kind binds appear only when the dir exists on the host
 out="$(sandbox_wrap_cmd "/some/wt" devin devin)"
@@ -113,9 +131,11 @@ else
 
   run_sandbox 'git add wt-file.txt && git -c user.email=t@t -c user.name=t commit -qm sb-test' > /dev/null
   last_commit="$(git -C "${wt}" log -1 --pretty=%s 2>/dev/null)"
-  [[ "${last_commit}" == "sb-test" ]] \
-    && ok "git commit works (base .git bound)" \
-    || bad "git commit works (base .git bound)"
+  if [[ "${last_commit}" == "sb-test" ]]; then
+    ok "git commit works (base .git bound)"
+  else
+    bad "git commit works (base .git bound)"
+  fi
 
   run_sandbox "touch ${lab}/escape.txt 2>/dev/null; true" > /dev/null
   expect_file "write at lab root blocked" "${lab}/escape.txt" absent
@@ -144,6 +164,9 @@ else
     rm -f "${priv_marker}"
   fi
   if [[ -S "${SSH_AUTH_SOCK:-}" ]]; then
+    # the var must expand inside the sandbox, not here — single quotes are
+    # intentional
+    # shellcheck disable=SC2016
     run_sandbox 'test -S "${SSH_AUTH_SOCK}"' > /dev/null 2>&1
     expect_rc "ssh agent socket not bound" "$?" 1
   fi
@@ -153,16 +176,18 @@ else
   fi
   if [[ -f "${HOME}/.gitconfig" ]]; then
     run_sandbox 'test -r ~/.gitconfig' > /dev/null 2>&1
-    expect_rc "~/.gitconfig readable" "$?" 0
+    expect_rc "${HOME}/.gitconfig readable" "$?" 0
     run_sandbox 'touch ~/.gitconfig 2>/dev/null' > /dev/null 2>&1
-    expect_rc "~/.gitconfig read-only" "$?" nz
+    expect_rc "${HOME}/.gitconfig read-only" "$?" nz
   fi
 
   # pid namespace: sandbox sees only its own processes
   procs="$(run_sandbox 'ls /proc | grep -cE "^[0-9]+"')"
-  [[ "${procs}" =~ ^[0-9]+$ && ${procs} -lt 20 ]] \
-    && ok "pid namespace isolates process table (${procs} visible)" \
-    || bad "pid namespace isolates process table (saw: ${procs})"
+  if [[ "${procs}" =~ ^[0-9]+$ && ${procs} -lt 20 ]]; then
+    ok "pid namespace isolates process table (${procs} visible)"
+  else
+    bad "pid namespace isolates process table (saw: ${procs})"
+  fi
 
   # an agent CLI installed under $HOME still launches inside the sandbox
   if [[ -n "${devin_bin:-}" && "${devin_bin}" == "${HOME}/"* ]]; then

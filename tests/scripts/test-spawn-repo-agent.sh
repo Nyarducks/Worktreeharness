@@ -5,6 +5,7 @@
 # the self-naming preamble. No network or real herdr session involved.
 set -uo pipefail
 
+# shellcheck source=tests/scripts/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 lab="${t}/lab"
@@ -24,7 +25,11 @@ echo "== sandboxed dispatch (default) =="
 out="$("${spawn}" owner/SpawnRepo -- "fix the flaky test")"
 expect_grep "reports pane" "${out}" "Dispatched to pane pane-1"
 wt="$(find "${lab}/worktree/SpawnRepo/task" -mindepth 1 -maxdepth 1 -type d | head -1)"
-[[ -n "${wt}" ]] && ok "task worktree created" || bad "task worktree created"
+if [[ -n "${wt}" ]]; then
+  ok "task worktree created"
+else
+  bad "task worktree created"
+fi
 expect_eq "task worktree is detached" \
   "$(git -C "${wt}" rev-parse --abbrev-ref HEAD)" "HEAD"
 
@@ -51,7 +56,7 @@ expect_not_grep "no bwrap pane run" "${log}" "pane run pane-1 exec bwrap"
 
 echo "== requires herdr session =="
 
-err="$(HERDR_ENV= "${spawn}" owner/SpawnRepo -- "x" 2>&1)"
+err="$(HERDR_ENV="" "${spawn}" owner/SpawnRepo -- "x" 2>&1)"
 rc=$?
 expect_rc "HERDR_ENV unset -> error" "${rc}" nz
 expect_grep "error message" "${err}" "not running inside a herdr session"

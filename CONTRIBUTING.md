@@ -35,7 +35,12 @@ Shell tests live in `tests/`. Run them before pushing:
 bash tests/test-hooks.sh                    # guard-hook allow/deny matrix
 bash tests/test-sandbox.sh                  # bwrap sandbox confinement
 for t in tests/scripts/test-*.sh; do bash "$t"; done   # per-script tests
+bash scripts/lint.sh                        # shellcheck every shell file
 ```
+
+`lint.sh` uses `tools/shellcheck` when present (portable install,
+gitignored — see its error message for the one-line install), otherwise
+shellcheck from PATH.
 
 Hook changes must extend `test-hooks.sh` (it simulates each agent's stdin
 JSON protocol). Sandbox changes must extend `test-sandbox.sh`. Any change

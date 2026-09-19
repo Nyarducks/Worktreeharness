@@ -30,6 +30,7 @@ main() {
   local allowed_dirs=""
   # scripts/lib/ and .env live in this script's checkout, not at the lab root.
   # shellcheck disable=SC1091
+  # shellcheck source=scripts/lib/rm-guard.sh
   source "$script_root/scripts/lib/rm-guard.sh" 2>/dev/null || true
   if declare -F load_allowed_ext_dirs > /dev/null; then
     allowed_dirs="$(load_allowed_ext_dirs "$harness_root"; load_allowed_ext_dirs "$script_root")"

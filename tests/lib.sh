@@ -8,6 +8,9 @@
 # The hook output shape differs per agent, so deny detection accepts
 #   {hookSpecificOutput:{permissionDecision:"deny"}}   (claude, codex)
 #   {decision:"deny"|"block"}                          (antigravity, devin)
+#
+# shellcheck disable=SC2154
+# (repo_root is provided by the sourcing test script)
 
 pass=0
 fail=0

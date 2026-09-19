@@ -105,12 +105,14 @@ ensure_trusted_workspace() {
 
   local agy_settings="${HOME}/.gemini/antigravity-cli/settings.json"
   if [[ -f "${agy_settings}" ]]; then
+    # shellcheck disable=SC2016
     json_merge_atomic "${agy_settings}" "${worktree_path}" \
       '.trustedWorkspaces = ((.trustedWorkspaces // []) + [$path] | unique)'
   fi
 
   local claude_settings="${HOME}/.claude.json"
   if [[ -f "${claude_settings}" ]]; then
+    # shellcheck disable=SC2016
     json_merge_atomic "${claude_settings}" "${worktree_path}" \
       '.projects[$path] = ((.projects[$path] // {}) + {hasTrustDialogAccepted: true})'
   fi
@@ -227,6 +229,7 @@ main() {
     # denied by the calling agent's own permission classifier; `pane run`
     # (typing the launch command into an existing pane) is not, and the agent
     # still self-registers via its SessionStart hook.
+    # shellcheck disable=SC2086
     if ! herdr agent start "${agent_name}" --kind "${kind}" --pane "${pane_id}" -- ${agent_flags} >&2; then
       if ! herdr agent get "${pane_id}" > /dev/null 2>&1; then
         herdr pane run "${pane_id}" "cd ${wt} && ${kind} ${agent_flags}" >&2

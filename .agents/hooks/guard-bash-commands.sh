@@ -46,6 +46,7 @@ main() {
   cwd="${cwd:-${harness_root}}"
 
   # shellcheck disable=SC1091
+  # shellcheck source=scripts/lib/rm-guard.sh
   source "${script_root}/scripts/lib/rm-guard.sh" 2>/dev/null || exit 0
 
   # 1) Always-on safety net
