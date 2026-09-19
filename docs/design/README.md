@@ -27,6 +27,12 @@ single terminal, orchestrated through herdr.
 
 - The orchestrator does **not** perform the work itself — it manages
   workspaces, workers, and status reporting.
+- The orchestrator does **not** autonomously decompose the human's
+  requirements and drive workers in a development loop — dispatch happens
+  per explicit request.
+- Workers are **not** injected with this project's `AGENTS.md` or
+  project-level skills — the harness must not leak side effects into the
+  worker's repo; only the target repo's own conventions apply.
 - Not a general sandbox product: confinement exists to make delegation
   safe, not to run untrusted code.
 - No worker→orchestrator reporting protocol — monitoring is pull-based
