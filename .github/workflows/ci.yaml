@@ -1,4 +1,4 @@
-name: ci
+name: CI
 
 on:
   pull_request:
@@ -6,6 +6,9 @@ on:
     # test run to pushes that touched *.sh or this workflow. `paths:` on the
     # trigger can't express this — it evaluates the whole PR diff, so a
     # docs-only push on a branch that contains .sh would still run CI.
+  workflow_dispatch:
+    # Manual runs diff against the default branch — there is no PR base in
+    # the dispatch event.
 
 jobs:
   changes:
@@ -19,11 +22,11 @@ jobs:
       - id: filter
         run: |
           # synchronize: only the just-pushed commits (event.before..event.after)
-          # opened/reopened: the whole PR diff against the base branch
+          # opened/reopened/workflow_dispatch: the whole diff against the base
           if [[ "${{ github.event.action }}" == "synchronize" ]]; then
             range="${{ github.event.before }}..${{ github.event.after }}"
           else
-            git fetch -q origin "${{ github.base_ref }}"
+            git fetch -q origin "${{ github.base_ref || github.event.repository.default_branch }}"
             range="FETCH_HEAD...HEAD"
           fi
           echo "range: ${range}"
@@ -87,7 +90,7 @@ jobs:
           fetch-depth: 0
 
       - name: Fetch base
-        run: git fetch -q origin "${{ github.base_ref }}"
+        run: git fetch -q origin "${{ github.base_ref || github.event.repository.default_branch }}"
 
       - name: Check docs freshness
-        run: bash scripts/check-docs-stale.sh "origin/${{ github.base_ref }}"
+        run: bash scripts/check-docs-stale.sh "origin/${{ github.base_ref || github.event.repository.default_branch }}"
