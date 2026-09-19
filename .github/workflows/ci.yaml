@@ -73,6 +73,9 @@ jobs:
           done
           exit "${failed}"
 
+      - name: Test coverage gate
+        run: bash scripts/check-test-coverage.sh
+
   shell-lint:
     needs: changes
     if: needs.changes.outputs.shell == 'true'

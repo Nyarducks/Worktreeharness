@@ -99,6 +99,13 @@ main() {
     update_repo "${repo_path}"
   fi
 
+  # A repo that ships scripts/setup-hooks.sh gets its hooks installed once
+  # at the base clone — linked worktrees share the common git dir, so no
+  # per-worktree install is needed. stderr only: stdout is the path contract.
+  if [[ -f "${repo_path}/scripts/setup-hooks.sh" ]]; then
+    bash "${repo_path}/scripts/setup-hooks.sh" >&2
+  fi
+
   echo "${repo_path}"
 }
 

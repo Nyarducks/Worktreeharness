@@ -14,16 +14,19 @@ git init -q "${repo}"
 mkdir -p "${repo}/scripts/hooks"
 cp "${repo_root}/scripts/setup-hooks.sh" "${repo}/scripts/"
 printf '#!/bin/sh\nexit 0\n' > "${repo}/scripts/hooks/pre-commit"
+printf '#!/bin/sh\nexit 0\n' > "${repo}/scripts/hooks/pre-push"
 
 out="$(bash "${repo}/scripts/setup-hooks.sh")"
 expect_grep "reports install" "${out}" "git hooks installed"
-hook="${repo}/.git/hooks/pre-commit"
-expect_file "pre-commit symlink" "${hook}" exists
-if [[ -L "${hook}" ]]; then
-  ok "installed as symlink"
-else
-  bad "installed as symlink"
-fi
+for name in pre-commit pre-push; do
+  hook="${repo}/.git/hooks/${name}"
+  expect_file "${name} installed" "${hook}" exists
+  if [[ -L "${hook}" ]]; then
+    ok "${name} installed as symlink"
+  else
+    bad "${name} installed as symlink"
+  fi
+done
 
 echo "== from a linked worktree, hooks land in the common git dir =="
 

@@ -15,7 +15,12 @@ resolve_git_dirs() {
 
 install_hooks() {
   mkdir -p "${git_common_dir}/hooks"
-  ln -sf "${repo_root}/scripts/hooks/pre-commit" "${git_common_dir}/hooks/pre-commit"
+  local hook name
+  for hook in "${repo_root}"/scripts/hooks/*; do
+    [[ -f "${hook}" ]] || continue
+    name="$(basename "${hook}")"
+    ln -sf "${hook}" "${git_common_dir}/hooks/${name}"
+  done
   echo "git hooks installed"
 }
 

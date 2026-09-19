@@ -45,12 +45,15 @@ shellcheck from PATH.
 Hook changes must extend `test-hooks.sh` (it simulates each agent's stdin
 JSON protocol). Sandbox changes must extend `test-sandbox.sh`. Any change
 to `scripts/*.sh` must extend the matching `tests/scripts/test-*.sh` —
-stubs for `gh`/`herdr`/`bwrap` live in `tests/scripts/lib.sh`. CI
-(`.github/workflows/ci.yaml`) runs all suites on PRs that touch `*.sh`,
-plus a `docs-freshness` gate on every PR. Dependabot
-(`.github/dependabot.yml`) opens weekly PRs for GitHub Actions updates —
-actions are pinned to a major (`@v6`) and runners to `ubuntu-24.04` so
-upstream deprecations arrive as reviewable PRs, not warnings.
+stubs for `gh`/`herdr`/`bwrap` live in `tests/scripts/lib.sh`. The
+`scripts/*.sh` → `tests/scripts/test-*.sh` pairing is enforced by the
+`pre-push` hook and the CI `shell-test` job via
+`scripts/check-test-coverage.sh`. CI (`.github/workflows/ci.yaml`) runs
+all suites on PRs that touch `*.sh`, plus a `docs-freshness` gate on
+every PR. Dependabot (`.github/dependabot.yml`) opens weekly PRs for
+GitHub Actions updates — actions are pinned to a major (`@v6`) and
+runners to `ubuntu-24.04` so upstream deprecations arrive as reviewable
+PRs, not warnings.
 
 ## Documentation
 

@@ -45,13 +45,6 @@ add_worktree() {
   fi
 }
 
-install_hooks_if_present() {
-  local repo_path="$1"
-  if [[ -f "${repo_path}/scripts/setup-hooks.sh" ]]; then
-    bash "${repo_path}/scripts/setup-hooks.sh"
-  fi
-}
-
 install_harness_hooks() {
   local repo_path="$1"
   local hooks_src
@@ -91,7 +84,6 @@ main() {
   compute_paths "${repo_path}" "${name}"
 
   add_worktree "${repo_path}" "${worktree_path}" "${name}" "${detach}"
-  install_hooks_if_present "${repo_path}"
   install_harness_hooks "${repo_path}"
 
   echo ""

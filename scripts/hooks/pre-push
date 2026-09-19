@@ -31,4 +31,10 @@ if command -v gh &>/dev/null; then
     fi
 fi
 
+# --- test coverage gate (fires only in repos shipping the check) ---
+coverage_check="${repo_root}/scripts/check-test-coverage.sh"
+if [[ -f "${coverage_check}" ]]; then
+    bash "${coverage_check}"
+fi
+
 echo ""

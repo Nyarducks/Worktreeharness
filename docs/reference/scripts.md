@@ -18,7 +18,9 @@ All scripts are bash, `set -euo pipefail`, and safe to re-run.
 
 Imports a GitHub repository into the lab. Clones into `repos/<repo>/` on
 first run; on later runs fetches and fast-forwards the default branch.
-Prints the absolute repo path.
+If the repo ships `scripts/setup-hooks.sh`, runs it once at the base
+clone — linked worktrees share the common git dir, so hooks need no
+per-worktree install. Prints the absolute repo path.
 
 ### `create-worktree.sh [--detach] <[org/]repo> <name>`
 
@@ -46,8 +48,9 @@ PRs.
 
 ### `setup-hooks.sh`
 
-Installs the git hooks in `scripts/hooks/` as symlinks into the common git
-dir. Safe to run from the base repo or any worktree.
+Installs every hook in `scripts/hooks/` as a symlink into the common git
+dir. Safe to run from the base repo or any worktree; `setup-repo.sh`
+invokes it automatically for repos that ship it.
 
 ### `lint.sh`
 
@@ -64,12 +67,18 @@ source changed in `base...HEAD` (default `origin/main`) without the doc
 changing in the same diff (`STALE`). `docs/adr/` is exempt — ADRs are
 point-in-time records.
 
+### `check-test-coverage.sh`
+
+Fails when any `scripts/*.sh` lacks a matching `tests/scripts/test-<name>.sh`.
+Run by the `pre-push` git hook and as the last step of the CI
+`shell-test` job.
+
 ## scripts/hooks/
 
 | Hook | Behavior |
 |---|---|
 | `pre-commit` | Blocks commits to `main` and to branches whose PR is already merged/closed |
-| `pre-push` | Additional push-time checks |
+| `pre-push` | PR-workflow reminders; blocks the push when `scripts/check-test-coverage.sh` exists and reports a script without a test |
 
 ## scripts/lib/
 
