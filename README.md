@@ -11,12 +11,15 @@ Worktreeharness/
 ├── repos/<repo>/          # Base clone — never edited directly
 ├── worktree/<repo>/<branch>/  # Active worktree — all edits happen here
 ├── scripts/               # Harness management scripts
-└── .claude/               # Claude Code hooks and skills
+├── .agents/               # Canonical skills + Antigravity hooks/settings
+├── .claude/               # Claude Code settings; skills → symlink to .agents/skills
+├── .codex/                # Codex hooks
+└── .devin/                # Devin CLI hooks (hooks.v1.json)
 ```
 
 1. `scripts/setup-repo.sh` clones (or fast-forwards) a GitHub repo into `repos/`.
 2. `scripts/create-worktree.sh` branches from `origin/main` and creates an isolated checkout under `worktree/`.
-3. Claude Code's `PreToolUse` hooks block any `Edit`/`Write` outside `worktree/`, ensuring the base clone stays clean.
+3. `PreToolUse` hooks block any write outside `worktree/`, ensuring the base clone stays clean.
 4. Work is committed and pushed from the worktree, then a PR is opened against the original repository.
 
 Both `repos/` and `worktree/` are gitignored — they are ephemeral working directories, not project files.
@@ -112,9 +115,9 @@ scripts/create-worktree.sh <owner>/<repo> feat/task-b
 
 ---
 
-## Claude Code skills
+## Skills
 
-The following slash commands are available inside Claude Code when working in this harness:
+Skills live canonically in `.agents/skills/` — Codex, Devin, and Antigravity read that directory natively, and `.claude/skills` is a symlink to it so Claude Code sees the same set. The following slash commands are available when working in this harness:
 
 | Command | Description |
 |---|---|
@@ -128,7 +131,7 @@ The following slash commands are available inside Claude Code when working in th
 
 ## Dispatch mode (`/herdr-dispatch`)
 
-`/parallel-worktree` runs work in-process rooted at the harness root, so a target repo's own `.claude/skills` and `CLAUDE.md` never load. `scripts/spawn-repo-agent.sh` instead spawns a separate agent process via `herdr`:
+`/parallel-worktree` runs work in-process rooted at the harness root, so a target repo's own `.agents/skills` and `AGENTS.md` never load. `scripts/spawn-repo-agent.sh` instead spawns a separate agent process via `herdr`:
 
 ```bash
 scripts/spawn-repo-agent.sh <owner>/<repo> -- "<task description>"
@@ -145,17 +148,22 @@ Requires the herdr CLI and an active herdr session (`$HERDR_ENV=1`).
 
 ## Guard hooks
 
-Three `PreToolUse` hooks run automatically inside Claude Code:
+The same three `PreToolUse` policies run under every supported agent, each in that agent's own config format:
 
-| Hook | Triggers on | Effect |
+| Config file | Agent | Tool matchers |
 |---|---|---|
-| `guard-writes-to-worktree.sh` | `Edit`, `Write` | Denies any write outside `worktree/` (unless the target is under `ALLOWED_EXT_DIRS`) |
-| `restrict-to-repo-root.sh` | `Read` | Denies reads outside the harness root, `worktree/`, and `repos/` (unless under `ALLOWED_EXT_DIRS`) |
-| `guard-bash-commands.sh` | `Bash` | Blocks dangerous `rm` commands unconditionally, and restricts other paths to the harness root or `ALLOWED_EXT_DIRS` |
+| `.claude/settings.json` | Claude Code | `Read`, `Edit\|Write`, `Bash` |
+| `.codex/hooks.json` | Codex | `Bash`, `apply_patch` |
+| `.agents/hooks.json` | Antigravity | `view_file`, `replace_file_content\|write_to_file\|multi_replace_file_content`, `run_command` |
+| `.devin/hooks.v1.json` | Devin CLI | `read`, `write\|edit\|notebook_edit\|apply_patch`, `exec` |
 
-The Codex equivalents (`.codex/hooks/restrict-to-harness-root.sh`, `.codex/hooks/guard-writes-to-worktree.sh`) enforce the same policy for Codex sessions. All of them share `scripts/lib/rm-guard.sh` for the rm safety net and the `ALLOWED_EXT_DIRS` allowlist logic.
+| Hook | Effect |
+|---|---|
+| `guard-writes-to-worktree.sh` | Denies any write outside `worktree/` (unless the target is under `ALLOWED_EXT_DIRS`) |
+| `restrict-to-repo-root.sh` | Denies reads outside the harness root, `worktree/`, and `repos/` (unless under `ALLOWED_EXT_DIRS`) |
+| `guard-bash-commands.sh` | Blocks dangerous `rm` commands unconditionally, and restricts other paths to the harness root or `ALLOWED_EXT_DIRS` |
 
-These are configured in `.claude/settings.json` / `.codex/hooks.json` and require no manual activation.
+Each agent's scripts live under `<dir>/hooks/` and all share `scripts/lib/rm-guard.sh` for the rm safety net and the `ALLOWED_EXT_DIRS` allowlist logic. No manual activation is needed.
 
 ### Allowing access outside the harness root
 

@@ -10,8 +10,8 @@ description: Spawn a dedicated agent process via herdr bound to a fresh repo wor
 `/parallel-worktree` does the work **in this same agent process**, rooted at
 the harness root — a target repo's own skills and rules are never loaded.
 Dispatch instead spawns a *separate* agent process via `herdr` whose cwd is
-the worktree, so the repo's own `.claude/skills` (or `.agents`/`.codex` for
-other hosts) and `CLAUDE.md`/`AGENTS.md` apply.
+the worktree, so the repo's own `.agents/skills` (visible to every host —
+`.claude/skills` is a symlink there) and `AGENTS.md`/`CLAUDE.md` apply.
 
 Use it when a task should run as a standalone agent, or when the target
 repo's own conventions matter. Otherwise `/parallel-worktree` is simpler.

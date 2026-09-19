@@ -8,7 +8,7 @@
 #   2. reuses the repo's herdr workspace (one workspace per repo, matched by
 #      label) or creates it, adding a tab bound to the new worktree
 #   3. starts the agent in that tab's root pane with cwd=<worktree>, so the
-#      repo's own CLAUDE.md/.claude/skills load — the worker knows nothing
+#      repo's own AGENTS.md/.agents/skills load — the worker knows nothing
 #      about this harness
 #   4. submits the task via `herdr agent prompt` (atomic paste+Enter); the
 #      prompt asks the worker to rename itself and its tab to a task-derived

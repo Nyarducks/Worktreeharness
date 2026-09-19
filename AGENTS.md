@@ -1,4 +1,4 @@
-# CLAUDE.md — Worktreeharness
+# AGENTS.md — Worktreeharness
 
 A framework for worktree-driven multi-repository development. Manages base clones under `repos/` and active worktrees under `worktree/`. Supports developing this harness itself and any external GitHub repository.
 
@@ -6,7 +6,7 @@ A framework for worktree-driven multi-repository development. Manages base clone
 
 > **Never edit `repos/` directly**: `repos/` holds bare base clones. Always create a worktree via `scripts/create-worktree.sh <owner>/<repo> <branch>` before making any changes.
 
-The repository-local Claude Code hooks enforce the write boundary for `Edit`/`Write`, and reject `Read`/`Bash` paths outside the harness root. Set `ALLOWED_EXT_DIRS` in `.env` (e.g. `~/.claude,/tmp`) to scope access to specific external directories — access outside the harness root is enabled precisely when this list is non-empty, and only for the listed paths; there is no separate switch to bypass the restriction entirely. Regardless of this setting, recursive `rm` targeting `$HOME`, `/`, or another critical directory is always blocked — see `scripts/lib/rm-guard.sh`.
+Repository-local hooks enforce the write boundary for file edits and reject read/shell paths outside the harness root. Each agent reads its own config: `.claude/settings.json` (Claude Code), `.codex/hooks.json` (Codex), `.agents/hooks.json` (Antigravity), `.devin/hooks.v1.json` (Devin CLI). Set `ALLOWED_EXT_DIRS` in `.env` (e.g. `~/.claude,/tmp`) to scope access to specific external directories — access outside the harness root is enabled precisely when this list is non-empty, and only for the listed paths; there is no separate switch to bypass the restriction entirely. Regardless of this setting, recursive `rm` targeting `$HOME`, `/`, or another critical directory is always blocked — see `scripts/lib/rm-guard.sh`.
 
 ---
 
@@ -17,7 +17,10 @@ Worktreeharness/
 ├── repos/<repo-name>/              # Base clone — read-only; never edit directly
 ├── worktree/<repo-name>/<branch>/  # Active worktree — all edits happen here
 ├── scripts/                        # Harness scripts (setup-repo, create-worktree, etc.)
-└── .claude/                        # Claude Code config, hooks, and skills
+├── .agents/                        # Canonical skills + Antigravity hooks/settings
+├── .claude/                        # Claude Code config; skills is a symlink to .agents/skills
+├── .codex/                         # Codex hooks
+└── .devin/                         # Devin CLI hooks (hooks.v1.json)
 ```
 
 Both `repos/` and `worktree/` are gitignored.
