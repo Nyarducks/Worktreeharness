@@ -1,87 +1,10 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# PreToolUse hook (codex): guard shell commands — dangerous `rm` plus paths
+# outside the harness root. Shared logic: scripts/lib/hook-common.sh.
+set -uo pipefail
 
-deny() {
-  local reason="$1"
-  jq -n --arg reason "$reason" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$reason}}'
-}
+script_root="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
+# shellcheck source=scripts/lib/hook-common.sh
+source "${script_root}/scripts/lib/hook-common.sh" 2>/dev/null || exit 0
 
-resolve_harness_root() {
-  local script_root base_repo
-  script_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-
-  base_repo="$(git -C "$script_root" worktree list --porcelain 2>/dev/null | awk '/^worktree / {print substr($0, 10); exit}')"
-  if [[ -n "$base_repo" && "$(basename "$(dirname "$base_repo")")" == "repos" ]]; then
-    dirname "$(dirname "$base_repo")"
-    return
-  fi
-
-  printf '%s\n' "$script_root"
-}
-
-is_system_path() {
-  case "$1" in
-    /bin/*|/usr/bin/*|/usr/local/bin/*|/dev/null) return 0 ;;
-    *) return 1 ;;
-  esac
-}
-
-main() {
-  local input command cwd script_root harness_root candidate target
-  input="$(cat)"
-  command="$(jq -r '.tool_input.command // empty' <<< "$input")"
-  cwd="$(jq -r '.cwd // empty' <<< "$input")"
-  script_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-  harness_root="$(realpath -m "$(resolve_harness_root)")"
-  cwd="${cwd:-$harness_root}"
-
-  # scripts/lib/ and .env live in this script's checkout, not at the lab root.
-  # shellcheck disable=SC1091
-  # shellcheck source=scripts/lib/rm-guard.sh
-  source "$script_root/scripts/lib/rm-guard.sh" 2>/dev/null || true
-
-  # Always-on safety net: never allow a recursive rm on $HOME, /, or another
-  # critical directory, regardless of ALLOWED_EXT_DIRS.
-  if declare -F rm_guard_dangerous_reason > /dev/null; then
-    local rm_reason
-    rm_reason="$(rm_guard_dangerous_reason "$command" "$cwd")"
-    if [[ -n "$rm_reason" ]]; then
-      deny "$rm_reason"
-      exit 0
-    fi
-  fi
-
-  # External-directory access is enabled precisely when ALLOWED_EXT_DIRS
-  # lists at least one path, and even then only those specific paths are
-  # reachable — there is no blanket "allow everything outside the harness
-  # root" mode.
-  local allowed_dirs=""
-  if declare -F load_allowed_ext_dirs > /dev/null; then
-    allowed_dirs="$(load_allowed_ext_dirs "$harness_root"; load_allowed_ext_dirs "$script_root")"
-  fi
-
-  while IFS= read -r candidate; do
-    [[ -z "$candidate" ]] && continue
-    if [[ "$candidate" = /* ]]; then
-      target="$(realpath -m "$candidate")"
-    else
-      target="$(realpath -m "$cwd/$candidate")"
-    fi
-
-    if is_system_path "$target"; then
-      continue
-    fi
-    if [[ "$target" != "$harness_root" && "$target" != "$harness_root/"* ]]; then
-      if [[ -n "$allowed_dirs" ]] && ext_dir_is_allowed "$target" "$allowed_dirs"; then
-        continue
-      fi
-      deny "Access outside harness root blocked: ${target}. Use repos/ for base clones and worktree/ for active worktrees, or add this path to ALLOWED_EXT_DIRS in .env."
-      exit 0
-    fi
-  done < <(
-    tr -c '[:alnum:]_./:+%@=-' '\n' <<< "$command" |
-      awk '/^\// || /^\.\.?\//'
-  )
-}
-
-main "$@"
+hook_main_command codex '.tool_input.command' '.cwd'

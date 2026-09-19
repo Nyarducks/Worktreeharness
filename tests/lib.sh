@@ -90,8 +90,8 @@ install_hooks() {
 # build_split <lab> — <lab>/{repos,worktree}/ with a real linked-worktree
 # checkout at worktree/TestRepo/feat-x (mirrors the production topology).
 # A real git worktree is required: `git rev-parse --show-toplevel` must
-# resolve for the hook-command resolution tests, and codex hooks locate the
-# lab root via `git worktree list`.
+# resolve for the hook-command resolution tests, and the hooks find the
+# lab root by walking up to the dir holding both repos/ and worktree/.
 build_split() {
   local lab="$1"
   mkdir -p "${lab}/repos" "${lab}/worktree"
