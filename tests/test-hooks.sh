@@ -60,6 +60,9 @@ run_matrix() {
   expect_deny  "${tag} claude bash: sudo rm -rf /etc"  "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "sudo rm -rf /etc" "${co}")"
   expect_deny  "${tag} claude bash: cat /etc/passwd"   "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "cat /etc/passwd" "${co}")"
   expect_allow "${tag} claude bash: allowlisted path"  "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "cat ${ext_b}/f.txt" "${co}")"
+  expect_allow "${tag} claude bash: ~ agent dir"       "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "cat ~/.claude/settings.json" "${co}")"
+  expect_deny  "${tag} claude bash: ~ outside lab"     "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "cat ~/secret.txt" "${co}")"
+  expect_allow "${tag} claude bash: ~ in quoted text"  "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "git commit -m 'mention ~/.claude here'" "${co}")"
 
   # ---- antigravity (.agents/hooks.json, .toolCall.args format) ----
   expect_allow "${tag} agy write: inside worktree"     "${h_agents}/guard-writes-to-worktree.sh" "$(pj_agy_file "${inside}" "${co}")"

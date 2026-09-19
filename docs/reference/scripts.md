@@ -81,7 +81,7 @@ Run by the `pre-push` git hook and as the last step of the CI
 | Hook | Behavior |
 |---|---|
 | `pre-commit` | Blocks commits to `main` and to branches whose PR is already merged/closed |
-| `pre-push` | PR-workflow reminders; blocks the push when `scripts/check-test-coverage.sh` exists and reports a script without a test |
+| `pre-push` | PR-workflow reminders; runs the repo's `scripts/check-docs-stale.sh` and `scripts/check-test-coverage.sh` when present, blocking the push on failure |
 
 ## scripts/lib/
 

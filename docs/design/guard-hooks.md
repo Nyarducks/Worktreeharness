@@ -30,7 +30,7 @@ stdin JSON fields; the decision logic lives in
 |---|---|
 | `guard-writes-to-worktree.sh` | Denies writes outside `worktree/` (unless allowlisted) |
 | `restrict-to-repo-root.sh` | Denies reads/shell access outside the lab root unless allowlisted |
-| `guard-bash-commands.sh` | Restricts command paths to the lab root or allowlist; dangerous recursive `rm` always blocked |
+| `guard-bash-commands.sh` | Restricts command paths to the lab root or allowlist — `~/` expands to `$HOME` as the shell would; dangerous recursive `rm` always blocked |
 
 ```mermaid
 flowchart TD
