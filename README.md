@@ -47,9 +47,6 @@ this repo") — the orchestrator works in its own worktree.
 | Doc | Contents |
 |---|---|
 | [`docs/design/`](docs/design/) | Design docs — start at the directory README |
-| [`docs/design/orchestration.md`](docs/design/orchestration.md) | How to ask the orchestrator to run workers; lifecycle, monitoring, cleanup |
-| [`docs/design/sandbox.md`](docs/design/sandbox.md) | Worker sandbox permission model |
-| [`docs/design/guard-hooks.md`](docs/design/guard-hooks.md) | Guard-hook policies, `ALLOWED_EXT_DIRS` |
 | [`docs/reference/`](docs/reference/) | Fact inventories — agent configs, skills, scripts |
 | [`docs/adr/`](docs/adr/) | Architecture decision records |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Development rules |
