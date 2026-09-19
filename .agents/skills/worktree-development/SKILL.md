@@ -14,11 +14,14 @@ repos in-process. (For the Worktreeharness repo itself, use
 
 ## Before dispatching — confirm with the user
 
-If the request does not specify both of these, ask via the ask tool
-*before* dispatching:
+If the request does not specify both of these, ask *before* dispatching
+via your agent's ask-question tool — the `ask*question` variant it
+exposes (`AskUserQuestion`, `ask_user_question`, `ask_question`, …).
+Never default silently.
 
-- **Agent kind** — which CLI the worker runs (`claude`, `agy`, `devin`,
-  …; maps to `--kind`). Never default silently.
+- **Agent kind** — offer these options (mapped to `--kind`):
+  Claude Code → `claude`, Codex → `codex`, Devin → `devin`,
+  Antigravity → `agy`.
 - **Repository** — ask for the repository *name*. Offer the base clones
   already under `repos/` as options; accept a bare name or `owner/name`.
 
