@@ -46,7 +46,7 @@ this repo") — the orchestrator works in its own worktree.
 
 | Doc | Contents |
 |---|---|
+| [`docs/adr/`](docs/adr/) | Architecture decision records |
 | [`docs/design/`](docs/design/) | Design docs — start at the directory README |
 | [`docs/reference/`](docs/reference/) | Fact inventories — agent configs, skills, scripts |
-| [`docs/adr/`](docs/adr/) | Architecture decision records |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Development rules |
