@@ -42,10 +42,26 @@ rc=$?
 expect_rc "existing worktree -> error" "${rc}" nz
 expect_grep "error message" "${err}" "already exists"
 
-echo "== installs harness git hooks =="
+echo "== installs harness git hooks as symlinks =="
 
 hooks_dir="$(git -C "${lab}/repos/TestRepo" rev-parse --path-format=absolute --git-dir)/hooks"
 expect_file "pre-commit installed" "${hooks_dir}/pre-commit" exists
+if [[ -L "${hooks_dir}/pre-commit" ]]; then
+  ok "pre-commit is a symlink"
+else
+  bad "pre-commit is a symlink"
+fi
+harness_base="$(dirname "$(git -C "${repo_root}" rev-parse --path-format=absolute --git-common-dir)")"
+expect_eq "symlink targets base clone hooks" "$(readlink "${hooks_dir}/pre-commit")" "${harness_base}/scripts/hooks/pre-commit"
+
+# a repo-native hook (regular file) is never clobbered — replace the
+# harness symlink first (writing through it would hit the base clone)
+rm -f "${hooks_dir}/pre-push"
+printf '#!/bin/sh\necho repo-own\n' > "${hooks_dir}/pre-push"
+chmod +x "${hooks_dir}/pre-push"
+"${repo_root}/scripts/create-worktree.sh" --detach owner/TestRepo task/keep-own > /dev/null
+expect_eq "repo-native hook preserved" "$(cat "${hooks_dir}/pre-push")" "#!/bin/sh
+echo repo-own"
 
 echo "== usage =="
 

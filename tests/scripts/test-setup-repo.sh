@@ -13,12 +13,22 @@ export WORKTREE_LAB_DIR="${lab}"
 stub_gh
 seed_origin TestRepo
 
+# the seeded repo ships its own scripts/hooks + setup-hooks.sh so
+# setup-repo.sh auto-installs them into the base clone's git dir
+mkdir -p "${t}/seed-TestRepo/scripts/hooks"
+cp "${repo_root}/scripts/setup-hooks.sh" "${t}/seed-TestRepo/scripts/"
+printf '#!/bin/sh\nexit 0\n' > "${t}/seed-TestRepo/scripts/hooks/pre-commit"
+git -C "${t}/seed-TestRepo" add -A
+git -C "${t}/seed-TestRepo" -c user.email=t@t -c user.name=t commit -qm hooks
+git -C "${t}/seed-TestRepo" push -q "${STUB_ORIGIN}/TestRepo.git" main
+
 echo "== clone on first run =="
 
 out="$(WORKTREE_LAB_DIR="${lab}" "${repo_root}/scripts/setup-repo.sh" owner/TestRepo)"
 expect_eq "prints repo path" "${out}" "${lab}/repos/TestRepo"
 expect_file "repo cloned" "${lab}/repos/TestRepo/.git" exists
 expect_grep "gh repo clone invoked" "$(cat "${GH_STUB_LOG}")" "gh repo clone owner/TestRepo"
+expect_file "hooks auto-installed" "${lab}/repos/TestRepo/.git/hooks/pre-commit" exists
 
 echo "== update on second run =="
 
