@@ -48,6 +48,7 @@ scripts/spawn-repo-agent.sh <owner>/<repo> -- "<task description>"
 
 | Doc | Contents |
 |---|---|
+| `docs/design/overview.md` | Why this exists — goal, requirements, high-level architecture |
 | `docs/design/architecture.md` | Topology, directory layout, roles, dispatch pipeline |
 | `docs/design/orchestration.md` | How to ask the orchestrator to run workers; lifecycle, monitoring, cleanup |
 | `docs/design/sandbox.md` | Worker sandbox permission model |

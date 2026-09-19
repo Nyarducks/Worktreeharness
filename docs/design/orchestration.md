@@ -13,6 +13,27 @@ sources: [scripts/spawn-repo-agent.sh, .agents/skills/herdr-dispatch/SKILL.md]
 
 ## Use case
 
+```mermaid
+sequenceDiagram
+    participant H as Human
+    participant O as Orchestrator
+    participant R as herdr
+    participant W as Worker
+
+    H->>O: "do task X in repo R"
+    O->>O: spawn-repo-agent.sh
+    Note over O: worktree + workspace + tab,<br/>sandboxed spawn, prompt
+    O->>R: agent prompt <pane>
+    R->>W: task + self-name preamble
+    W->>R: agent rename / tab rename
+    W->>W: implement in task worktree
+    H->>O: "how is it going?"
+    O->>R: agent wait / read <pane>
+    O->>H: status report
+    H->>O: "also fix Y"
+    O->>R: agent prompt <pane> (follow-up)
+```
+
 The human talks to one agent — the **Orchestrator** — running at the lab
 root. To run work in another repo, ask the orchestrator in natural
 language:
