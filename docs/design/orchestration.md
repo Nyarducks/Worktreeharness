@@ -5,7 +5,7 @@ description: How the orchestrator dispatches, monitors, and steers workers throu
 status: current
 last_modified: 2026-09-20
 tags: [orchestrator, herdr, dispatch, worker]
-sources: [scripts/spawn-repo-agent.sh, .agents/skills/herdr-dispatch/SKILL.md]
+sources: [scripts/spawn-repo-agent.sh, .agents/skills/worktree-development/SKILL.md]
 ---
 
 # Orchestration
@@ -27,7 +27,7 @@ sequenceDiagram
     participant W as Worker
 
     H->>O: "do task X in repo R"
-    O->>G: create-worktree.sh → worktree/R/task/<uuid>
+    O->>G: create-worktree.sh --detach → worktree/R/task/<uuid><br/>(detached HEAD at origin/main)
     O->>R: workspace get/create (label = repo)<br/>tab create → pane
     O->>R: pane run — bwrap-wrapped agent, cwd=worktree
     O->>R: agent prompt (task + self-name preamble)
@@ -50,6 +50,9 @@ Key decisions (see ADR-0003, ADR-0004):
   the worker to rename itself and its tab once it understands the task.
   The worker knows nothing about the harness — the preamble is the whole
   contract.
+- **Detached start**: task worktrees begin on a detached HEAD at
+  `origin/main`; a branch is named only once the work — and its slug —
+  is known (see ADR-0008).
 - **Pull-based monitoring**: workers carry no reporting protocol;
   `herdr agent wait/read/prompt` is the interface.
 
@@ -76,8 +79,8 @@ spawned the worker manages it, but human intervention is always allowed.
 
 A dispatched worktree belongs to its worker while follow-up work may be
 routed there — the orchestrator never edits it directly. After the task is
-done and the human approves, remove the worktree + branch and close the
-tab.
+done and the human approves, remove the worktree (and its branch, if the
+worker created one) and close the tab.
 
 ## Security
 
@@ -92,5 +95,7 @@ and live-verified dispatch (self-naming, confined writes).
 
 ## Notes
 
-When herdr is unavailable, `/parallel-worktree` (in-process worktree work)
-is the fallback — no worker process is spawned.
+There is no in-process fallback for other repositories: when herdr is
+unavailable the orchestrator reports that and does not dispatch. (Work on
+the Worktreeharness repo itself is the exception — see
+`worktreeharness-development`.)

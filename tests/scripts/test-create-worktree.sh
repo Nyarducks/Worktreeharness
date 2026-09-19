@@ -24,6 +24,16 @@ base="$(git -C "${LAB}/worktree/TestRepo/feat/topic" rev-parse HEAD)"
 origin_main="$(git -C "${LAB}/repos/TestRepo" rev-parse origin/main)"
 expect_eq "based on origin/main" "${base}" "${origin_main}"
 
+echo "== --detach creates a detached HEAD =="
+
+out="$(WORKTREE_LAB_DIR="${LAB}" "${REPO_ROOT}/scripts/create-worktree.sh" --detach owner/TestRepo task/abc123)"
+expect_grep "prints detached" "${out}" "HEAD:   detached at origin/main"
+head_ref="$(git -C "${LAB}/worktree/TestRepo/task/abc123" rev-parse --abbrev-ref HEAD)"
+expect_eq "HEAD detached" "${head_ref}" "HEAD"
+base="$(git -C "${LAB}/worktree/TestRepo/task/abc123" rev-parse HEAD)"
+expect_eq "based on origin/main" "${base}" "$(git -C "${LAB}/repos/TestRepo" rev-parse origin/main)"
+expect_eq "no branch created" "$(git -C "${LAB}/repos/TestRepo" branch --list 'task/abc123')" ""
+
 echo "== refuses to clobber =="
 
 err="$(WORKTREE_LAB_DIR="${LAB}" "${REPO_ROOT}/scripts/create-worktree.sh" owner/TestRepo feat/topic 2>&1)"

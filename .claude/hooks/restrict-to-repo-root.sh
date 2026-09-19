@@ -49,7 +49,7 @@ main() {
     fi
   fi
 
-  deny "Access outside repository root blocked: ${FP}. Use repos/ for base clones and worktree/ for active worktrees, or add this path to ALLOWED_EXT_DIRS in .env (see .agents/skills/parallel-worktree/SKILL.md)."
+  deny "Access outside repository root blocked: ${FP}. Use repos/ for base clones and worktree/ for active worktrees, or add this path to ALLOWED_EXT_DIRS in .env (see AGENTS.md)."
 }
 
 main

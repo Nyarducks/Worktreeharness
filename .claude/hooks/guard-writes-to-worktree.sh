@@ -54,7 +54,7 @@ main() {
     fi
   fi
 
-  deny "Write blocked outside worktrees: ${FP}. All code changes must happen in a worktree under worktree/, or add this path to ALLOWED_EXT_DIRS in .env (see .agents/skills/parallel-worktree/SKILL.md)."
+  deny "Write blocked outside worktrees: ${FP}. All code changes must happen in a worktree under worktree/, or add this path to ALLOWED_EXT_DIRS in .env (see AGENTS.md)."
 }
 
 main

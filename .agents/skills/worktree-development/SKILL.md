@@ -1,20 +1,26 @@
 ---
-name: herdr-dispatch
-description: Spawn a dedicated agent process via herdr bound to a fresh repo worktree — one herdr workspace per repo, one tab per dispatched task. The worker runs with the worktree as cwd so the target repo's own skills and CLAUDE.md/AGENTS.md load. Use for cross-repo tasks or whenever a task should run as a real separate agent.
+name: worktree-development
+description: Develop any repository other than Worktreeharness by dispatching a dedicated worker agent via herdr — one herdr workspace per repo, one tab per task. Ask the user which agent kind and which repository when unspecified.
 ---
 
-# herdr Dispatch (Orchestrator)
+# Worktree Development (herdr dispatch)
 
-## Why this exists, and when to use it instead of `/parallel-worktree`
+Any repository **other than Worktreeharness itself** is developed through
+this skill: a separate worker agent process spawned via `herdr`, with its
+cwd bound to a fresh worktree so the target repo's own `.agents/skills`
+and `AGENTS.md`/`CLAUDE.md` apply. The orchestrator never edits other
+repos in-process. (For the Worktreeharness repo itself, use
+`worktreeharness-development` instead.)
 
-`/parallel-worktree` does the work **in this same agent process**, rooted at
-the harness root — a target repo's own skills and rules are never loaded.
-Dispatch instead spawns a *separate* agent process via `herdr` whose cwd is
-the worktree, so the repo's own `.agents/skills` (visible to every host —
-`.claude/skills` is a symlink there) and `AGENTS.md`/`CLAUDE.md` apply.
+## Before dispatching — confirm with the user
 
-Use it when a task should run as a standalone agent, or when the target
-repo's own conventions matter. Otherwise `/parallel-worktree` is simpler.
+If the request does not specify both of these, ask via the ask tool
+*before* dispatching:
+
+- **Agent kind** — which CLI the worker runs (`claude`, `agy`, `devin`,
+  …; maps to `--kind`). Never default silently.
+- **Repository** — ask for the repository *name*. Offer the base clones
+  already under `repos/` as options; accept a bare name or `owner/name`.
 
 ## Precondition
 
@@ -22,8 +28,8 @@ repo's own conventions matter. Otherwise `/parallel-worktree` is simpler.
 [[ "${HERDR_ENV:-}" == "1" ]] && command -v herdr >/dev/null
 ```
 
-If this fails, tell the user herdr isn't available and fall back to
-`/parallel-worktree`.
+If this fails, tell the user herdr isn't available — there is no
+in-process fallback for other repositories.
 
 ## Dispatching a task
 
@@ -36,9 +42,12 @@ scripts/spawn-repo-agent.sh --no-sandbox <owner>/<repo> -- "<task>"
 
 One call does the whole sequence:
 
-1. `create-worktree.sh` imports/refreshes `repos/<repo>` and creates
-   `worktree/<repo>/task/<uuid>` on branch `task/<uuid>` — the uuid leaf
-   keeps concurrent dispatches collision-free.
+1. `create-worktree.sh --detach` imports/refreshes `repos/<repo>` and
+   creates `worktree/<repo>/task/<uuid>` on a **detached HEAD at
+   `origin/main`** — the uuid leaf keeps concurrent dispatches
+   collision-free, and no branch is named before the task is understood.
+   The worker names its own branch if and when it needs one; the
+   orchestrator does not prescribe one.
 2. `herdr workspace list` finds the workspace labeled `<repo>`; a new tab is
    added to it, or a new workspace is created — one workspace per repo, one
    tab per task.
@@ -57,8 +66,8 @@ One call does the whole sequence:
    (`herdr tab rename <tab> <title>`) once it knows the task — names like
    `w-<repo>-<uuid>` mean nothing, so the worker picks a task slug itself.
 
-The script prints `Dispatched to pane <pane_id> (repo=... branch=...
-worktree=...)` — keep the `pane_id` for monitoring and follow-ups.
+The script prints `Dispatched to pane <pane_id> (repo=... worktree=...)` —
+keep the `pane_id` for monitoring and follow-ups.
 
 ## Monitoring (pull model)
 
@@ -84,8 +93,8 @@ herdr agent prompt "<pane_id>" "<follow-up task>" --wait --timeout 120000
   first-run confirmation prompt: it registers the path in agy's
   `trustedWorkspaces` and claude's `~/.claude.json` project trust list;
   `devin` is launched with `--respect-workspace-trust false`.
-- Each dispatch creates a fresh worktree and branch; nothing is reused
-  across tasks except the repo's herdr workspace itself.
+- Each dispatch creates a fresh worktree; nothing is reused across tasks
+  except the repo's herdr workspace itself.
 - The worker starts as `w-<uuid>` and self-renames from the task prompt —
   if it skipped that step (or the rename failed), fall back to addressing
   it by pane id, which always works.

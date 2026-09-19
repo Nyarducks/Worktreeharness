@@ -20,20 +20,23 @@ Imports a GitHub repository into the lab. Clones into `repos/<repo>/` on
 first run; on later runs fetches and fast-forwards the default branch.
 Prints the absolute repo path.
 
-### `create-worktree.sh <[org/]repo> <branch>`
+### `create-worktree.sh [--detach] <[org/]repo> <name>`
 
-Creates `worktree/<repo>/<branch>` on a new branch based on
-`origin/main`. Calls `setup-repo.sh` internally when the repo is not yet
+Creates `worktree/<repo>/<name>` based on `origin/main` — on a new branch
+named `<name>` by default, or on a detached HEAD when `--detach` is given
+(used for dispatched task worktrees; no branch is named before the task
+is understood). Calls `setup-repo.sh` internally when the repo is not yet
 imported. Prints the absolute worktree path — use it for all edits.
 
 ### `spawn-repo-agent.sh [--kind <kind>] [--no-sandbox] <[org/]repo> -- <task>`
 
 Dispatches a task to a dedicated worker agent via herdr. Creates a
-collision-free task worktree (`worktree/<repo>/task/<uuid>`), reuses or
-creates the repo's herdr workspace + tab, launches the agent (sandboxed by
-default via `scripts/lib/sandbox-wrap.sh`), and submits the task with a
-self-naming preamble. Prints `Dispatched to pane <pane_id>` — keep the
-pane id for monitoring. See `orchestration.md`.
+collision-free task worktree (`worktree/<repo>/task/<uuid>`, detached HEAD
+at `origin/main`), reuses or creates the repo's herdr workspace + tab,
+launches the agent (sandboxed by default via
+`scripts/lib/sandbox-wrap.sh`), and submits the task with a self-naming
+preamble. Prints `Dispatched to pane <pane_id>` — keep the pane id for
+monitoring. See `orchestration.md`.
 
 ### `append-pr-log.sh <owner>/<repo> <pr-number> <worktree-path>`
 

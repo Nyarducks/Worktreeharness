@@ -22,6 +22,79 @@ Base clones under `repos/` are never edited. See
 - The pre-commit hook blocks `main` and already-merged/closed PR branches
 - Humans approve and merge PRs — agents never do
 
+## Shell script style
+
+Applies to everything under `scripts/` and the hook scripts.
+
+### Safety header
+
+Always start scripts with a standard bash shebang and strict execution
+flags to fail fast on errors:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+```
+
+- `-e`: exit immediately if a command exits with a non-zero status.
+- `-u`: treat unset variables as an error and exit immediately.
+- `-o pipefail`: return the exit status of the last command in the
+  pipeline that failed.
+
+### Variable naming
+
+- **Constants and environment variables**: UPPERCASE snake_case; mark
+  read-only constants explicitly.
+
+  ```bash
+  readonly DEFAULT_PORT=8080
+  export API_ENDPOINT="https://api.example.com"
+  ```
+
+- **Internal and local variables**: lowercase snake_case — avoids
+  collisions with environment variables (`PATH`, `USER`, `HOME`).
+
+  ```bash
+  local file_name="$1"
+  user_count=0
+  ```
+
+### Expansion and quoting
+
+- Always wrap variable references in double quotes to prevent word
+  splitting and globbing:
+
+  ```bash
+  rm -- "$target_file"   # not: rm -- $target_file
+  ```
+
+- `${var}` braces are optional for simple references, mandatory for
+  concatenation (`"${base}_backup.tar.gz"`), array indexing
+  (`"${arr[0]}"`), and parameter expansion (`"${timeout:-30}"`).
+
+### Functions and scope
+
+- Define functions without the `function` keyword:
+  `function_name() { ... }`.
+- Declare internal variables inside functions with `local`.
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly LOG_DIR="/var/log/app"
+readonly MAX_RETRIES=3
+
+backup_logs() {
+  local target_app="$1"
+  local destination_archive="${LOG_DIR}/${target_app}_archive.tar.gz"
+
+  echo "Creating archive: ${destination_archive}"
+}
+
+backup_logs "service-a"
+```
+
 ## Tests
 
 Shell tests live in `tests/`. Run them before pushing:
