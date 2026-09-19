@@ -27,12 +27,16 @@ Base clones under `repos/` are never edited. See
 Shell tests live in `tests/`. Run them before pushing:
 
 ```bash
-bash tests/test-hooks.sh     # guard-hook allow/deny matrix
-bash tests/test-sandbox.sh   # bwrap sandbox confinement
+bash tests/test-hooks.sh                    # guard-hook allow/deny matrix
+bash tests/test-sandbox.sh                  # bwrap sandbox confinement
+for t in tests/scripts/test-*.sh; do bash "$t"; done   # per-script tests
 ```
 
 Hook changes must extend `test-hooks.sh` (it simulates each agent's stdin
-JSON protocol). Sandbox changes must extend `test-sandbox.sh`.
+JSON protocol). Sandbox changes must extend `test-sandbox.sh`. Any change
+to `scripts/*.sh` must extend the matching `tests/scripts/test-*.sh` —
+stubs for `gh`/`herdr`/`bwrap` live in `tests/scripts/lib.sh`. CI
+(`.github/workflows/ci.yaml`) runs all suites on PRs that touch `*.sh`.
 
 ## Documentation
 
