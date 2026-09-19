@@ -9,11 +9,14 @@ worktree/
 !.claude/skills/parallel-worktree
 !.claude/skills/pr-review-fix
 !.claude/skills/setup-harness
+!.claude/skills/herdr-dispatch
 
 # Ignore locally-added Codex skills; track the harness-provided skills only
 .codex/skills/*
 !.codex/skills/git-operations/
 !.codex/skills/git-operations/**
+!.codex/skills/herdr-dispatch/
+!.codex/skills/herdr-dispatch/**
 !.codex/skills/parallel-worktree/
 !.codex/skills/parallel-worktree/**
 !.codex/skills/pr-review-fix/

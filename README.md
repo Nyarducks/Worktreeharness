@@ -122,6 +122,24 @@ The following slash commands are available inside Claude Code when working in th
 | `/git-operations` | Branching, committing, PR creation and editing via `gh` |
 | `/pr-review-fix` | Review a PR, post inline comments, auto-fix findings in a worktree |
 | `/setup-harness` | Install this framework into a new repo, or onboard an external repo |
+| `/herdr-dispatch` | Spawn a separate agent process via herdr bound to a fresh repo worktree |
+
+---
+
+## Dispatch mode (`/herdr-dispatch`)
+
+`/parallel-worktree` runs work in-process rooted at the harness root, so a target repo's own `.claude/skills` and `CLAUDE.md` never load. `scripts/spawn-repo-agent.sh` instead spawns a separate agent process via `herdr`:
+
+```bash
+scripts/spawn-repo-agent.sh <owner>/<repo> -- "<task description>"
+scripts/spawn-repo-agent.sh --kind agy <owner>/<repo> -- "<task description>"
+```
+
+It creates a collision-free worktree (`worktree/<repo>/task/<uuid>` on branch `task/<uuid>`), reuses or creates the repo's herdr workspace (one workspace per repo, one tab per task), and starts the agent there with the worktree as cwd — so the repo's own skills and conventions apply, and the worker knows nothing about this harness.
+
+Monitoring is pull-based: `herdr agent wait <pane> --until idle` to wait for completion, `herdr agent read <pane>` to inspect output, and `herdr agent prompt <pane> "<follow-up>"` to send more work to the same agent.
+
+Requires the herdr CLI and an active herdr session (`$HERDR_ENV=1`).
 
 ---
 

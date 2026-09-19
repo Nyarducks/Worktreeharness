@@ -74,3 +74,4 @@ scripts/create-worktree.sh $SLUG feat/improve-scripts
 | `/git-operations` | Branching, committing, PR creation/editing |
 | `/pr-review-fix` | Reviewing a PR and auto-fixing findings |
 | `/setup-harness` | Bootstrapping this framework in a new repo, or adding a new repo to develop |
+| `/herdr-dispatch` | Spawn a separate agent process via herdr bound to a fresh repo worktree — one herdr workspace per repo, one tab per task |
