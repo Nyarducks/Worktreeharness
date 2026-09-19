@@ -61,6 +61,17 @@ Key decisions (see ADR-0003, ADR-0004):
   global skills; cannot access outside its worktree (enforced by the
   sandbox — see [sandbox.md](sandbox.md)).
 
+## Steering a worker
+
+The orchestrator is not the worker's owner — it is the spawner. Once a
+worker is running, the human can always talk to it directly: focus the
+herdr tab and type, or `herdr agent prompt <pane> "<instruction>"` from
+any shell. Sandbox confinement applies regardless of who prompts.
+
+Only caveat: avoid the human and the orchestrator prompting the same
+worker concurrently — contexts interleave. In principle the side that
+spawned the worker manages it, but human intervention is always allowed.
+
 ## Ownership and cleanup
 
 A dispatched worktree belongs to its worker while follow-up work may be
