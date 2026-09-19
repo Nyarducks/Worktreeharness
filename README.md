@@ -4,22 +4,20 @@ A harness for worktree-driven multi-repository development. All code changes flo
 
 ## Supports
 
-✔ verified · - not yet verified · ✖ not supported
-
-| OS | |
+| OS | Status |
 |---|---|
-| Linux | ✔ |
-| macOS | - |
-| Windows | ✖ |
+| Linux | ✔ Verified |
+| macOS | - Unverified |
+| Windows | ✖ Unsupported |
 
 At least one agent CLI is needed to dispatch workers (`--kind`):
 
-| Agent | |
+| Agent | Status |
 |---|---|
-| [Claude Code](https://claude.ai/code) | - |
-| [Devin CLI](https://docs.devin.ai/cli) | ✔ |
-| [Codex CLI](https://github.com/openai/codex) | - |
-| [Antigravity](https://antigravity.google) | - |
+| [Claude Code](https://claude.ai/code) | - Unverified |
+| [Devin CLI](https://docs.devin.ai/cli) | ✔ Verified |
+| [Codex CLI](https://github.com/openai/codex) | - Unverified |
+| [Antigravity](https://antigravity.google) | - Unverified |
 
 ## Requirements
 
