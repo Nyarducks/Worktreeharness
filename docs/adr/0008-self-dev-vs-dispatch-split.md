@@ -48,8 +48,8 @@ harness).
 
 - `create-worktree.sh` gains a `--detach` flag; `spawn-repo-agent.sh`
   always uses it and no longer prints a `branch=` field.
-- `AGENTS.md` carries the routing rule (開発時 vs 運用時) so every agent
-  runtime sees it regardless of skill loading.
+- `AGENTS.md` carries the routing rule (harness dev vs dispatch) so every
+  agent runtime sees it regardless of skill loading.
 - Supersedes the fallback note in ADR-0003 (`/parallel-worktree` no
   longer exists) and narrows ADR-0002's "one worktree per task" to
   detached worktrees for dispatched tasks.

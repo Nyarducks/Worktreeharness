@@ -2,15 +2,15 @@
 
 Worktree-driven multi-repository development harness.
 
-## Which workflow — 運用時 vs 開発時
+## Which workflow
 
-- **開発時** — the task targets *this* repository (Worktreeharness):
+- **Developing Worktreeharness** — the task targets *this* repository:
   use `worktreeharness-development`. Create the worktree yourself with
   `scripts/create-worktree.sh` and work in it directly.
-- **運用時** — the task targets *any other* repository: use
-  `worktree-development`. Dispatch a worker via herdr — never edit other
-  repos in-process. If the request does not say which agent kind or which
-  repository, ask the user before dispatching.
+- **Working on any other repository** — use `worktree-development`.
+  Dispatch a worker via herdr — never edit other repos in-process. If the
+  request does not say which agent kind or which repository, ask the user
+  before dispatching.
 
 ## Rules — always follow
 
