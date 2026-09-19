@@ -23,6 +23,7 @@ Worktree-driven multi-repository development harness.
    herdr instead.
 4. **Keep docs current** — update `docs/design/` in the same commit as any
    behavior change; record significant decisions as ADRs in `docs/adr/`.
+   CI enforces the doc↔code link via each doc's `sources:` frontmatter.
 
 ## Pointers
 

@@ -35,20 +35,21 @@ gh auth login                 # once per machine
 ## Quick start
 
 ```bash
-# Develop an external repo
-scripts/setup-repo.sh <owner>/<repo>
-scripts/create-worktree.sh <owner>/<repo> feat/<topic>
-# → worktree/<repo>/feat/<topic>/ — edit, commit, push, open a PR
-
-# Or ask the orchestrator to dispatch a worker agent via herdr
+# Work on another repo — the orchestrator dispatches a sandboxed worker
+# agent via herdr (it never edits other repos in-process)
 scripts/spawn-repo-agent.sh <owner>/<repo> -- "<task description>"
+
+# Develop Worktreeharness itself — the orchestrator works in its own
+# worktree
+scripts/create-worktree.sh <owner>/Worktreeharness feat/<topic>
+# → worktree/Worktreeharness/feat/<topic>/ — edit, commit, push, open a PR
 ```
 
 ## Documentation
 
 | Doc | Contents |
 |---|---|
-| `docs/design/` | Design docs — start at `overview` (rendered as the dir README) |
+| `docs/design/` | Design docs — start at the directory README |
 | `docs/design/orchestration.md` | How to ask the orchestrator to run workers; lifecycle, monitoring, cleanup |
 | `docs/design/sandbox.md` | Worker sandbox permission model |
 | `docs/design/guard-hooks.md` | Guard-hook policies, `ALLOWED_EXT_DIRS` |

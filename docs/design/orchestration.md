@@ -27,6 +27,7 @@ sequenceDiagram
     participant W as Worker
 
     H->>O: "do task X in repo R"
+    O->>H: confirm agent kind + repo via ask-question tool<br/>(only when the request omits them)
     O->>G: create-worktree.sh --detach → worktree/R/task/<uuid><br/>(detached HEAD at origin/main)
     O->>R: workspace get/create (label = repo)<br/>tab create → pane
     O->>R: pane run — bwrap-wrapped agent, cwd=worktree
@@ -53,6 +54,10 @@ Key decisions (see ADR-0003, ADR-0004):
 - **Detached start**: task worktrees begin on a detached HEAD at
   `origin/main`; a branch is named only once the work — and its slug —
   is known (see ADR-0008).
+- **Ask before dispatch**: when the request omits the agent kind or the
+  repository, the orchestrator asks the user through its ask-question
+  tool (`AskUserQuestion`/`ask_user_question`/`ask_question` — the name
+  varies per agent) rather than defaulting silently (ADR-0008).
 - **Pull-based monitoring**: workers carry no reporting protocol;
   `herdr agent wait/read/prompt` is the interface.
 

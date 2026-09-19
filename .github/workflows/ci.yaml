@@ -76,3 +76,18 @@ jobs:
 
       - name: Lint
         run: bash scripts/lint.sh
+
+  # Docs freshness is cheap (git diff + frontmatter parse) and applies to
+  # any file a doc derives from — not just *.sh — so it runs ungated.
+  docs-freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base
+        run: git fetch -q origin "${{ github.base_ref }}"
+
+      - name: Check docs freshness
+        run: bash scripts/check-docs-stale.sh "origin/${{ github.base_ref }}"
