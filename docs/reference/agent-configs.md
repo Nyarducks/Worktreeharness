@@ -10,8 +10,10 @@ sources: [.claude, .codex, .agents, .devin]
 
 # Agent config directories
 
-Each agent reads its own config dir; the same three guard-hook policies
-are implemented per format (design rationale: [../design/guard-hooks.md](../design/guard-hooks.md)).
+Each agent reads its own config dir; the guard-hook policies are
+implemented per format — Codex ships only two of the three (no file-path
+tool, so no `restrict-to-repo-root.sh`). Design rationale:
+[../design/guard-hooks.md](../design/guard-hooks.md).
 
 | Directory | Agent | Defines |
 |---|---|---|

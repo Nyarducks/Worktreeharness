@@ -169,4 +169,6 @@ Fact inventories (config tables, script/skill lists) live in
 Design docs describe *what* and *why*; implementation detail lives in the
 code, which agents can read directly. Keep docs at the level of invariants
 and intent — detailed specs rot faster than they help. All docs here use
-OKF v0.2 frontmatter; see `CONTRIBUTING.md`.
+OKF v0.2 frontmatter; each doc's `sources:` list declares the files it is
+derived from and CI fails a PR that changes a source without the doc
+(`scripts/check-docs-stale.sh`; see `CONTRIBUTING.md`).

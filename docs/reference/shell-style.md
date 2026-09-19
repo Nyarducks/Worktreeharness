@@ -5,7 +5,7 @@ description: Style conventions for everything under scripts/ and the hook script
 status: current
 last_modified: 2026-09-20
 tags: [style, bash, conventions]
-sources: [scripts, tests]
+sources: []
 ---
 
 Applies to everything under `scripts/` and the hook scripts.

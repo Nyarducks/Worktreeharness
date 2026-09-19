@@ -61,7 +61,28 @@ Docs are part of every change:
   lists). Same frontmatter convention with `type: Reference`.
 - **`docs/adr/`** — record significant decisions as
   `docs/adr/NNNN-<slug>.md` (Context / Decision / Consequences, OKF
-  frontmatter `type: ADR`). Numbers are sequential.
+  frontmatter `type: ADR`). Numbers are sequential. ADRs are immutable
+  point-in-time records — never edit one to track code drift; write a
+  new ADR when a decision is revisited.
 - **`README.md`** — quick start only; keep it slim.
 - **`AGENTS.md`** — must-follow rules only; do not document structure or
   usage there.
+
+### Keeping docs fresh
+
+Docs rot when prose claims drift from code. Three mechanisms prevent it:
+
+- **`sources:` contract** — every design/reference doc *derived from
+  code* lists the files it is derived from. `scripts/check-docs-stale.sh`
+  (CI: `docs-freshness`) fails a PR that changes a source without
+  touching its doc, or that leaves a `sources` entry pointing at a
+  deleted/renamed path. Keep `sources` as narrow as the doc's actual
+  dependencies. Prescriptive docs (conventions like `shell-style.md`)
+  leave `sources: []` — the check skips them.
+- **Write checkable claims** — avoid universal quantifiers over
+  code-derived facts ("every agent implements …") and embedded counts
+  ("28 checks") unless a test asserts them; enumerate the matrix or name
+  the exception instead.
+- **Root docs carry no `sources:`** — `README.md`/`AGENTS.md`/
+  `CONTRIBUTING.md` are reviewed by hand: re-check the quick start and
+  the rule list whenever workflow routing or skill behavior changes.

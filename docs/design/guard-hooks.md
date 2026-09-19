@@ -18,9 +18,12 @@ advisory guardrails against accidents, in each agent's native hook format.
 
 ## Design
 
-Three `PreToolUse` policies, shared by every agent format. Each file
-under `.<agent>/hooks/` is a thin adapter that names the agent kind and
-its stdin JSON fields; the decision logic lives in
+Three `PreToolUse` policies; each agent implements the subset its tool
+surface needs — Codex ships only the command and write guards because it
+has no file-path tool for `restrict-to-repo-root.sh` to guard (file
+reads go through `shell`, writes through `apply_patch`). Each file under
+`.<agent>/hooks/` is a thin adapter that names the agent kind and its
+stdin JSON fields; the decision logic lives in
 `scripts/lib/hook-common.sh` (which sources `rm-guard.sh`):
 
 | Hook | Effect |

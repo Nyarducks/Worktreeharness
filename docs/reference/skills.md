@@ -27,3 +27,13 @@ Skills encode *procedures* the orchestrator follows; they assume the
 calling agent already sits at the lab root. A dispatched worker does **not**
 receive these skills — it only sees the target repo's own `AGENTS.md`,
 `.agents/skills`, and conventions.
+
+## Frontmatter
+
+Skills carry only `name` + `description`. `allowed-tools` is
+deliberately unset: the spec field is experimental and tool
+vocabularies/semantics differ per agent — Claude treats it as per-turn
+pre-approval (not a restriction), Devin accepts a small lowercase tool
+set, Antigravity uses its own `tools:` field, and Codex ignores
+everything past `name`/`description`. Any restriction enforcement lives
+in the guard hooks, not in skill metadata.

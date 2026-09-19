@@ -74,7 +74,7 @@ explicitly.
 
 ## Verification
 
-`tests/test-sandbox.sh` covers command construction and real confinement
-(28 checks). Live-verified: a sandboxed Devin worker self-renamed via
+`tests/test-sandbox.sh` covers command construction and real confinement.
+Live-verified: a sandboxed Devin worker self-renamed via
 herdr, committed to its worktree, and writes to `/tmp` and `~/.config`
 never reached the host.

@@ -55,6 +55,15 @@ Runs shellcheck over every tracked shell file (`*.sh` plus the
 extension-less git hooks). Prefers the portable, gitignored
 `tools/shellcheck` install; falls back to shellcheck on PATH.
 
+### `check-docs-stale.sh [base-ref]`
+
+Enforces the docs freshness contract: every `docs/design`/`docs/reference`
+doc declares the files it is derived from in its `sources:` frontmatter.
+Fails when a declared source path no longer exists (`MISSING`), or when a
+source changed in `base...HEAD` (default `origin/main`) without the doc
+changing in the same diff (`STALE`). `docs/adr/` is exempt — ADRs are
+point-in-time records.
+
 ## scripts/hooks/
 
 | Hook | Behavior |
