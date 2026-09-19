@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # PreToolUse hook: Guard Bash commands.
 #   1. Unconditional safety net — deny any recursive `rm` that would purge
 #      $HOME, /, or another critical top-level directory, regardless of
@@ -10,8 +10,8 @@
 set -uo pipefail
 
 deny() {
-  local MSG="$1"
-  jq -n --arg reason "${MSG}" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$reason}}'
+  local msg="$1"
+  jq -n --arg reason "${msg}" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$reason}}'
   exit 0
 }
 
@@ -23,59 +23,59 @@ is_system_path() {
 }
 
 main() {
-  local INPUT COMMAND CWD HARNESS_ROOT
-  INPUT="$(cat)"
-  COMMAND="$(jq -r '.tool_input.command // empty' <<< "${INPUT}")"
-  [[ -z "${COMMAND}" ]] && exit 0
-  CWD="$(jq -r '.cwd // empty' <<< "${INPUT}")"
+  local input command cwd harness_root
+  input="$(cat)"
+  command="$(jq -r '.tool_input.command // empty' <<< "${input}")"
+  [[ -z "${command}" ]] && exit 0
+  cwd="$(jq -r '.cwd // empty' <<< "${input}")"
 
-  # SCRIPT_ROOT = the checkout containing this script (scripts/lib/, .env).
-  # HARNESS_ROOT = nearest ancestor holding both repos/ and worktree/ — works
+  # script_root = the checkout containing this script (scripts/lib/, .env).
+  # harness_root = nearest ancestor holding both repos/ and worktree/ — works
   # whether the checkout IS the lab root or sits under <lab>/worktree/<repo>/<branch>.
-  local SCRIPT_ROOT DIR
-  SCRIPT_ROOT="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
-  DIR="${SCRIPT_ROOT}"
-  while [[ -n "${DIR}" && "${DIR}" != "/" ]]; do
-    if [[ -d "${DIR}/worktree" && -d "${DIR}/repos" ]]; then
-      HARNESS_ROOT="${DIR}"
+  local script_root dir
+  script_root="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
+  dir="${script_root}"
+  while [[ -n "${dir}" && "${dir}" != "/" ]]; do
+    if [[ -d "${dir}/worktree" && -d "${dir}/repos" ]]; then
+      harness_root="${dir}"
       break
     fi
-    DIR="$(dirname "${DIR}")"
+    dir="$(dirname "${dir}")"
   done
-  [[ -z "${HARNESS_ROOT}" ]] && HARNESS_ROOT="${SCRIPT_ROOT}"
-  [[ -z "${HARNESS_ROOT}" || ! -d "${HARNESS_ROOT}" ]] && exit 0
-  CWD="${CWD:-${HARNESS_ROOT}}"
+  [[ -z "${harness_root}" ]] && harness_root="${script_root}"
+  [[ -z "${harness_root}" || ! -d "${harness_root}" ]] && exit 0
+  cwd="${cwd:-${harness_root}}"
 
   # shellcheck disable=SC1091
-  source "${SCRIPT_ROOT}/scripts/lib/rm-guard.sh" 2>/dev/null || exit 0
+  source "${script_root}/scripts/lib/rm-guard.sh" 2>/dev/null || exit 0
 
   # 1) Always-on safety net, checked before any allowlist bypass.
-  local RM_REASON
-  RM_REASON="$(rm_guard_dangerous_reason "${COMMAND}" "${CWD}")"
-  [[ -n "${RM_REASON}" ]] && deny "${RM_REASON}"
+  local rm_reason
+  rm_reason="$(rm_guard_dangerous_reason "${command}" "${cwd}")"
+  [[ -n "${rm_reason}" ]] && deny "${rm_reason}"
 
   # 2) Harness-root restriction, with ALLOWED_EXT_DIRS as a scoped escape hatch.
-  local ALLOWED_DIRS
-  ALLOWED_DIRS="$(load_allowed_ext_dirs "${HARNESS_ROOT}"; load_allowed_ext_dirs "${SCRIPT_ROOT}")"
+  local allowed_dirs
+  allowed_dirs="$(load_allowed_ext_dirs "${harness_root}"; load_allowed_ext_dirs "${script_root}")"
 
-  local CANDIDATE TARGET
-  while IFS= read -r CANDIDATE; do
-    [[ -z "${CANDIDATE}" ]] && continue
-    if [[ "${CANDIDATE}" = /* ]]; then
-      TARGET="$(realpath -m "${CANDIDATE}")"
+  local candidate target
+  while IFS= read -r candidate; do
+    [[ -z "${candidate}" ]] && continue
+    if [[ "${candidate}" = /* ]]; then
+      target="$(realpath -m "${candidate}")"
     else
-      TARGET="$(realpath -m "${CWD}/${CANDIDATE}")"
+      target="$(realpath -m "${cwd}/${candidate}")"
     fi
 
-    is_system_path "${TARGET}" && continue
-    [[ "${TARGET}" == "${HARNESS_ROOT}" || "${TARGET}" == "${HARNESS_ROOT}/"* ]] && continue
-    if [[ -n "${ALLOWED_DIRS}" ]] && ext_dir_is_allowed "${TARGET}" "${ALLOWED_DIRS}"; then
+    is_system_path "${target}" && continue
+    [[ "${target}" == "${harness_root}" || "${target}" == "${harness_root}/"* ]] && continue
+    if [[ -n "${allowed_dirs}" ]] && ext_dir_is_allowed "${target}" "${allowed_dirs}"; then
       continue
     fi
 
-    deny "Access outside harness root blocked: ${TARGET}. Use repos/ for base clones and worktree/ for active worktrees, or add this path to ALLOWED_EXT_DIRS in .env."
+    deny "Access outside harness root blocked: ${target}. Use repos/ for base clones and worktree/ for active worktrees, or add this path to ALLOWED_EXT_DIRS in .env."
   done < <(
-    tr -c '[:alnum:]_./:+%@=-' '\n' <<< "${COMMAND}" |
+    tr -c '[:alnum:]_./:+%@=-' '\n' <<< "${command}" |
       awk '/^\// || /^\.\.?\//'
   )
 }

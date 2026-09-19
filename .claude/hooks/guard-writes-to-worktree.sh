@@ -1,60 +1,60 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # PreToolUse hook: Block Edit/Write outside worktrees (worktree/) — forces all code changes through worktrees
 set -uo pipefail
 
 deny() {
-  local MSG="$1"
-  jq -n --arg reason "${MSG}" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$reason}}'
+  local msg="$1"
+  jq -n --arg reason "${msg}" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$reason}}'
   exit 0
 }
 
-# Output variables: SCRIPT_ROOT, MAIN_REPO
-# SCRIPT_ROOT = the checkout containing this script — scripts/lib/ and .env
-# live there. MAIN_REPO = nearest ancestor holding both repos/ and worktree/
+# Output variables: script_root, main_repo
+# script_root = the checkout containing this script — scripts/lib/ and .env
+# live there. main_repo = nearest ancestor holding both repos/ and worktree/
 # (the lab root) — works whether the checkout IS the lab root or sits under
 # <lab>/worktree/<repo>/<branch>. They differ in a split layout.
 resolve_main_repo() {
-  SCRIPT_ROOT="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
-  local DIR="${SCRIPT_ROOT}"
-  while [[ -n "${DIR}" && "${DIR}" != "/" ]]; do
-    if [[ -d "${DIR}/worktree" && -d "${DIR}/repos" ]]; then
-      MAIN_REPO="${DIR}"
+  script_root="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
+  local dir="${script_root}"
+  while [[ -n "${dir}" && "${dir}" != "/" ]]; do
+    if [[ -d "${dir}/worktree" && -d "${dir}/repos" ]]; then
+      main_repo="${dir}"
       return 0
     fi
-    DIR="$(dirname "${DIR}")"
+    dir="$(dirname "${dir}")"
   done
-  MAIN_REPO="${SCRIPT_ROOT}"
-  if [[ -z "${MAIN_REPO}" || ! -d "${MAIN_REPO}" ]]; then
+  main_repo="${script_root}"
+  if [[ -z "${main_repo}" || ! -d "${main_repo}" ]]; then
     deny "Write blocked: could not determine harness root from hook path ($0)."
   fi
 }
 
 main() {
-  local FP
-  FP="$(jq -r '.tool_input.file_path // empty')"
-  [[ -z "${FP}" ]] && exit 0
+  local fp
+  fp="$(jq -r '.tool_input.file_path // empty')"
+  [[ -z "${fp}" ]] && exit 0
 
-  FP="$(realpath -m "${FP}" 2>/dev/null || echo "${FP}")"
+  fp="$(realpath -m "${fp}" 2>/dev/null || echo "${fp}")"
 
-  local MAIN_REPO SCRIPT_ROOT
+  local main_repo script_root
   resolve_main_repo
 
-  local WORKTREE_DIR="${MAIN_REPO}/worktree"
-  if [[ "${FP}" == "${WORKTREE_DIR}"/* || "${FP}" == "${WORKTREE_DIR}" ]]; then
+  local worktree_dir="${main_repo}/worktree"
+  if [[ "${fp}" == "${worktree_dir}"/* || "${fp}" == "${worktree_dir}" ]]; then
     exit 0
   fi
 
   # shellcheck disable=SC1091
-  source "${SCRIPT_ROOT}/scripts/lib/rm-guard.sh" 2>/dev/null
+  source "${script_root}/scripts/lib/rm-guard.sh" 2>/dev/null
   if declare -F load_allowed_ext_dirs >/dev/null; then
-    local ALLOWED_DIRS
-    ALLOWED_DIRS="$(load_allowed_ext_dirs "${MAIN_REPO}"; load_allowed_ext_dirs "${SCRIPT_ROOT}")"
-    if [[ -n "${ALLOWED_DIRS}" ]] && ext_dir_is_allowed "${FP}" "${ALLOWED_DIRS}"; then
+    local allowed_dirs
+    allowed_dirs="$(load_allowed_ext_dirs "${main_repo}"; load_allowed_ext_dirs "${script_root}")"
+    if [[ -n "${allowed_dirs}" ]] && ext_dir_is_allowed "${fp}" "${allowed_dirs}"; then
       exit 0
     fi
   fi
 
-  deny "Write blocked outside worktrees: ${FP}. All code changes must happen in a worktree under worktree/, or add this path to ALLOWED_EXT_DIRS in .env (see AGENTS.md)."
+  deny "Write blocked outside worktrees: ${fp}. All code changes must happen in a worktree under worktree/, or add this path to ALLOWED_EXT_DIRS in .env (see AGENTS.md)."
 }
 
 main
