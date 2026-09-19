@@ -136,9 +136,21 @@ Skills live canonically in `.agents/skills/` — Codex, Devin, and Antigravity r
 ```bash
 scripts/spawn-repo-agent.sh <owner>/<repo> -- "<task description>"
 scripts/spawn-repo-agent.sh --kind agy <owner>/<repo> -- "<task description>"
+scripts/spawn-repo-agent.sh --no-sandbox <owner>/<repo> -- "<task description>"
 ```
 
 It creates a collision-free worktree (`worktree/<repo>/task/<uuid>` on branch `task/<uuid>`), reuses or creates the repo's herdr workspace (one workspace per repo, one tab per task), and starts the agent there with the worktree as cwd — so the repo's own skills and conventions apply, and the worker knows nothing about this harness.
+
+### Worker sandbox
+
+By default the worker runs inside a **bubblewrap mount namespace** (`scripts/lib/sandbox-wrap.sh`) — an OS-level boundary that works for any agent CLI, not an advisory hook:
+
+- `/` is read-only; `/tmp` and `$HOME` are tmpfs (ephemeral, hidden contents)
+- Writable: the worktree, the base repo's `.git` (linked worktrees store index/objects/refs there), `~/.config/herdr` (socket), and the agent's own config dirs (`~/.claude`, `~/.config/devin`, `~/.gemini`, `~/.codex`)
+- Read-only: `~/.config/gh`, `~/.gitconfig`, `~/.ssh/known_hosts`+`config`, `$SSH_AUTH_SOCK` — ssh private keys stay hidden
+- The agent binary itself is rebound if it lives under `$HOME` (e.g. `~/.local/bin/devin`), as is `herdr` (needed for self-rename)
+
+Requires `bwrap` on PATH; dispatch fails closed without it. Pass `--no-sandbox` to opt out. Verify locally with `bash tests/test-sandbox.sh`.
 
 Monitoring is pull-based: `herdr agent wait <pane> --until idle` to wait for completion, `herdr agent read <pane>` to inspect output, and `herdr agent prompt <pane> "<follow-up>"` to send more work to the same agent.
 

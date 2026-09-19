@@ -31,6 +31,7 @@ If this fails, tell the user herdr isn't available and fall back to
 scripts/spawn-repo-agent.sh <[owner/]repo> -- "<task>"
 scripts/spawn-repo-agent.sh --kind agy <owner>/<repo> -- "<task>"
 scripts/spawn-repo-agent.sh --kind devin <owner>/<repo> -- "<task>"
+scripts/spawn-repo-agent.sh --no-sandbox <owner>/<repo> -- "<task>"
 ```
 
 One call does the whole sequence:
@@ -41,10 +42,15 @@ One call does the whole sequence:
 2. `herdr workspace list` finds the workspace labeled `<repo>`; a new tab is
    added to it, or a new workspace is created — one workspace per repo, one
    tab per task.
-3. `herdr agent start w-<uuid> --kind <kind> --pane <pane>` launches the
-   agent in that tab's root pane under a placeholder name (falls back to
-   `herdr pane run` when the caller's own permission classifier denies
-   `agent start`).
+3. The agent launches in that tab's root pane under a placeholder name
+   `w-<uuid>`. By default it runs inside a bubblewrap mount namespace built
+   by `scripts/lib/sandbox-wrap.sh` — `/` read-only, `$HOME`/`/tmp` tmpfs,
+   writable only to the worktree, the base repo's `.git`, the herdr socket,
+   and the agent's own config dirs. Sandboxed workers launch via
+   `herdr pane run` (bwrap can't be injected into `agent start --kind`);
+   `--no-sandbox` falls back to `herdr agent start` (which itself falls back
+   to `pane run` if the caller's permission classifier denies it). Dispatch
+   fails closed when `bwrap` is missing unless `--no-sandbox` is passed.
 4. `herdr agent prompt <pane> "<task>" --wait` submits the task atomically.
    The prompt embeds a short preamble telling the worker to rename itself
    (`herdr agent rename <pane> <slug>`) and its tab

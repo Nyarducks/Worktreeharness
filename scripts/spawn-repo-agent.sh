@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: spawn-repo-agent.sh [--kind <claude|agy|...>] <[org/]repo> -- <task text...>
+# Usage: spawn-repo-agent.sh [--kind <claude|agy|...>] [--no-sandbox] <[org/]repo> -- <task text...>
 #
 # Dispatches a task to a dedicated agent process via herdr:
 #   1. imports/refreshes repos/<repo> and creates a worktree at
@@ -9,7 +9,10 @@
 #      label) or creates it, adding a tab bound to the new worktree
 #   3. starts the agent in that tab's root pane with cwd=<worktree>, so the
 #      repo's own AGENTS.md/.agents/skills load — the worker knows nothing
-#      about this harness
+#      about this harness. By default the agent runs inside a bubblewrap
+#      mount namespace (scripts/lib/sandbox-wrap.sh): the filesystem is
+#      read-only except the worktree, the base repo's .git, the herdr socket,
+#      and the agent's own config dirs. --no-sandbox disables it.
 #   4. submits the task via `herdr agent prompt` (atomic paste+Enter); the
 #      prompt asks the worker to rename itself and its tab to a task-derived
 #      slug/title, replacing the placeholder name w-<uuid>
@@ -19,7 +22,7 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 [--kind <claude|agy|...>] <[org/]repo> -- <task text...>" >&2
+  echo "Usage: $0 [--kind <claude|agy|...>] [--no-sandbox] <[org/]repo> -- <task text...>" >&2
   exit 1
 }
 
@@ -140,11 +143,13 @@ main() {
   local script_dir
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-  local kind="claude"
+  local kind="claude" sandbox=1
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --kind) kind="${2:?--kind needs a value}"; shift 2 ;;
       --kind=*) kind="${1#*=}"; shift ;;
+      --sandbox) sandbox=1; shift ;;
+      --no-sandbox) sandbox=0; shift ;;
       *) break ;;
     esac
   done
@@ -196,14 +201,35 @@ main() {
   # once it reads the prompt — the dispatcher cannot know a meaningful name
   # before the worker does. herdr agent names: [a-z][a-z0-9_-]{0,31}
   local agent_name="w-${uuid}"
-  # `agent start` is the native path (waits for readiness itself). It can be
-  # denied by the calling agent's own permission classifier; `pane run`
-  # (typing the launch command into an existing pane) is not, and the agent
-  # still self-registers via its SessionStart hook.
-  if ! herdr agent start "${agent_name}" --kind "${kind}" --pane "${pane_id}" -- ${agent_flags} >&2; then
-    if ! herdr agent get "${pane_id}" > /dev/null 2>&1; then
-      herdr pane run "${pane_id}" "cd ${wt} && ${kind} ${agent_flags}" >&2
-      wait_for_agent "${pane_id}"
+  if [[ ${sandbox} -eq 1 ]]; then
+    # Sandboxed workers can't use `agent start --kind` (it execs the bare
+    # binary); the pane gets a bwrap-wrapped command instead. Fail closed:
+    # a worker without its filesystem boundary is worse than no worker.
+    command -v bwrap > /dev/null 2>&1 || {
+      echo "Error: sandboxed workers require bubblewrap (bwrap). Install it, or pass --no-sandbox." >&2
+      exit 1
+    }
+    # shellcheck source=scripts/lib/sandbox-wrap.sh
+    source "${script_dir}/lib/sandbox-wrap.sh"
+    local -a agent_argv
+    read -ra agent_argv <<< "${kind} ${agent_flags}"
+    local wrapped
+    wrapped="$(sandbox_wrap_cmd "${wt}" "${kind}" "${agent_argv[@]}")" || {
+      echo "Error: failed to build sandbox command (rc=$?)." >&2
+      exit 1
+    }
+    herdr pane run "${pane_id}" "exec ${wrapped}" >&2
+    wait_for_agent "${pane_id}"
+  else
+    # `agent start` is the native path (waits for readiness itself). It can be
+    # denied by the calling agent's own permission classifier; `pane run`
+    # (typing the launch command into an existing pane) is not, and the agent
+    # still self-registers via its SessionStart hook.
+    if ! herdr agent start "${agent_name}" --kind "${kind}" --pane "${pane_id}" -- ${agent_flags} >&2; then
+      if ! herdr agent get "${pane_id}" > /dev/null 2>&1; then
+        herdr pane run "${pane_id}" "cd ${wt} && ${kind} ${agent_flags}" >&2
+        wait_for_agent "${pane_id}"
+      fi
     fi
   fi
 
