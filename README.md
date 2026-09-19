@@ -40,12 +40,12 @@ Both `repos/` and `worktree/` are gitignored — they are ephemeral working dire
 
 **Optional agent CLIs** — whichever workers you dispatch with `--kind` (at least one needed for `/herdr-dispatch`):
 
-| Agent | Install |
-|---|---|
-| [Claude Code](https://claude.ai/code) | `npm install -g @anthropic-ai/claude-code` |
-| [Devin CLI](https://docs.devin.ai/cli) | https://docs.devin.ai/cli |
-| [Codex CLI](https://github.com/openai/codex) | `npm install -g @openai/codex` |
-| [Antigravity](https://antigravity.google) | https://antigravity.google/download |
+| Agent | Install | Verified |
+|---|---|---|
+| [Claude Code](https://claude.ai/code) | `npm install -g @anthropic-ai/claude-code` | - |
+| [Devin CLI](https://docs.devin.ai/cli) | https://docs.devin.ai/cli | ✓ |
+| [Codex CLI](https://github.com/openai/codex) | `npm install -g @openai/codex` | - |
+| [Antigravity](https://antigravity.google) | https://antigravity.google/download | ✓ |
 
 After installing `gh`, authenticate once:
 
@@ -153,12 +153,24 @@ It creates a collision-free worktree (`worktree/<repo>/task/<uuid>` on branch `t
 
 ### Worker sandbox
 
-By default the worker runs inside a **bubblewrap mount namespace** (`scripts/lib/sandbox-wrap.sh`) — an OS-level boundary that works for any agent CLI, not an advisory hook:
+By default the worker runs inside a **bubblewrap mount namespace** (`scripts/lib/sandbox-wrap.sh`) — an OS-level boundary that works for any agent CLI, not an advisory hook. Filesystem permissions granted to the sandboxed worker:
 
-- `/` is read-only; `/tmp` and `$HOME` are tmpfs (ephemeral, hidden contents)
-- Writable: the worktree, the base repo's `.git` (linked worktrees store index/objects/refs there), `~/.config/herdr` (socket), and the agent's own config dirs (`~/.claude`, `~/.config/devin`, `~/.gemini`, `~/.codex`)
-- Read-only: `~/.config/gh`, `~/.gitconfig`, `~/.ssh/known_hosts`+`config`, `$SSH_AUTH_SOCK` — ssh private keys stay hidden
-- The agent binary itself is rebound if it lives under `$HOME` (e.g. `~/.local/bin/devin`), as is `herdr` (needed for self-rename)
+| Path | Access | Why |
+|---|---|---|
+| `/` | read-only | Whole system is visible but unwritable |
+| `/tmp` | tmpfs (ephemeral) | Scratch space; host `/tmp` is hidden — if the worktree itself lives under `/tmp`, `/tmp` is bound rw instead so the worktree isn't orphaned |
+| `$HOME` | tmpfs (ephemeral) | Hides `~/.ssh` keys, other repos, credentials; writes vanish on exit |
+| `worktree/<repo>/task/<uuid>` | read/write | The only project path the worker may modify |
+| `repos/<repo>/.git` (git-common-dir) | read/write | Linked worktrees store index/objects/refs here — required for `git add`/`commit` |
+| `~/.config/herdr` | read/write | Herdr socket + config — needed for `herdr agent rename`/`tab rename` |
+| `~/.config/gh` | read/write | `gh` auth token and CLI state for pushes/PRs |
+| `~/.gitconfig`, `~/.git-credentials`, `~/.netrc` | read-only | Git identity and HTTPS credentials; usable but not modifiable |
+| `~/.ssh/known_hosts`, `~/.ssh/config` | read-only | SSH remotes keep working; **private keys stay hidden** |
+| `$SSH_AUTH_SOCK` | read/write (socket) | ssh-agent signing without exposing key material |
+| Agent binary under `$HOME` (e.g. `~/.local/bin/devin`, `~/.local/bin/herdr`) | read/write bind | Rebound at its PATH location — otherwise the tmpfs'd `$HOME` would hide the CLI itself |
+| Agent config dir (per `--kind`: `~/.claude`/`~/.claude.json`, `~/.config/devin`+`~/.local/share/devin`+`~/.devin`, `~/.gemini`, `~/.codex`) | read/write | The CLI's own session/auth state |
+
+Process isolation: PID/UTS/IPC namespaces are unshared and the sandbox dies with its parent. Network is shared (agents need API/git access) — confinement is filesystem + process only.
 
 Requires `bwrap` on PATH; dispatch fails closed without it. Pass `--no-sandbox` to opt out. Verify locally with `bash tests/test-sandbox.sh`.
 
