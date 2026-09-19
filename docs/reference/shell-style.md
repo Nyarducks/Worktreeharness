@@ -8,8 +8,6 @@ tags: [style, bash, conventions]
 sources: [scripts, tests]
 ---
 
-# Bash Script Style Guide
-
 Applies to everything under `scripts/` and the hook scripts.
 
 ## 1. Safety Header
