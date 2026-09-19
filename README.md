@@ -2,6 +2,25 @@
 
 A harness for worktree-driven multi-repository development. All code changes flow through isolated `git worktree` checkouts — the base repository is never edited directly. Guard hooks enforce this in-process; dispatched workers run inside a bubblewrap sandbox.
 
+## Supports
+
+✔ verified · - not yet verified · ✖ not supported
+
+| OS | |
+|---|---|
+| Linux | ✔ |
+| macOS | - |
+| Windows | ✖ |
+
+At least one agent CLI is needed to dispatch workers (`--kind`):
+
+| Agent | |
+|---|---|
+| [Claude Code](https://claude.ai/code) | - |
+| [Devin CLI](https://docs.devin.ai/cli) | ✔ |
+| [Codex CLI](https://github.com/openai/codex) | - |
+| [Antigravity](https://antigravity.google) | - |
+
 ## Requirements
 
 | Tool | Purpose | Install |
@@ -13,15 +32,6 @@ A harness for worktree-driven multi-repository development. All code changes flo
 | `realpath` | Path normalisation in hooks | GNU coreutils; on macOS `brew install coreutils` |
 | `herdr` | Orchestration for dispatched workers | https://herdr.dev |
 | `bwrap` | Worker sandbox (fail-closed; `--no-sandbox` opts out) | `sudo apt install bubblewrap` |
-
-**Optional agent CLIs** — at least one needed to dispatch workers (`--kind`):
-
-| Agent | Install | Verified |
-|---|---|---|
-| [Claude Code](https://claude.ai/code) | `npm install -g @anthropic-ai/claude-code` | - |
-| [Devin CLI](https://docs.devin.ai/cli) | https://docs.devin.ai/cli | ✓ |
-| [Codex CLI](https://github.com/openai/codex) | `npm install -g @openai/codex` | - |
-| [Antigravity](https://antigravity.google) | https://antigravity.google/download | ✓ |
 
 ## Setup
 
