@@ -4,19 +4,19 @@
 # real herdr session.
 #
 # Sourcing this file also sets:
-#   REPO_ROOT — the harness checkout under test
-#   T         — a fresh scratch dir (removed on EXIT)
-#   STUB_BIN  — dir prepended to PATH containing stub commands
+#   repo_root — the harness checkout under test
+#   t         — a fresh scratch dir (removed on EXIT)
+#   stub_bin  — dir prepended to PATH containing stub commands
 
 # shellcheck source=tests/lib.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lib.sh"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-T="$(realpath "$(mktemp -d /tmp/wth-scripts.XXXXXX)")"
-STUB_BIN="${T}/bin"
-mkdir -p "${STUB_BIN}"
-PATH="${STUB_BIN}:${PATH}"
-trap 'rm -rf "${T}"' EXIT
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+t="$(realpath "$(mktemp -d /tmp/wth-scripts.XXXXXX)")"
+stub_bin="${t}/bin"
+mkdir -p "${stub_bin}"
+PATH="${stub_bin}:${PATH}"
+trap 'rm -rf "${t}"' EXIT
 
 expect_rc() { # <name> <rc> <want: 0|nz>
   if [[ "$3" == 0 && "$2" -eq 0 ]] || [[ "$3" == nz && "$2" -ne 0 ]]; then
@@ -43,7 +43,7 @@ expect_not_grep() { [[ "$2" != *"$3"* ]] && ok "$1" || { bad "$1"; printf '     
 # stub_gh — a `gh` whose `repo clone` clones from ${STUB_ORIGIN}/<name>.git
 # (a local bare repo) and whose `api` serves canned PR bodies / captures PATCH.
 stub_gh() {
-  cat > "${STUB_BIN}/gh" <<'EOF'
+  cat > "${stub_bin}/gh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 # record every invocation
@@ -62,17 +62,17 @@ elif [[ "$1" == "api" ]]; then
   fi
 fi
 EOF
-  chmod +x "${STUB_BIN}/gh"
-  export STUB_ORIGIN="${T}/origin"
+  chmod +x "${stub_bin}/gh"
+  export STUB_ORIGIN="${t}/origin"
   mkdir -p "${STUB_ORIGIN}"
-  export GH_STUB_LOG="${T}/gh.log" GH_STUB_BODY_FILE="${T}/pr-body.txt"
+  export GH_STUB_LOG="${t}/gh.log" GH_STUB_BODY_FILE="${t}/pr-body.txt"
   : > "${GH_STUB_LOG}"
 }
 
 # stub_herdr — records invocations, serves canned JSON for the queries
 # spawn-repo-agent.sh makes, and exits 0 for everything else.
 stub_herdr() {
-  cat > "${STUB_BIN}/herdr" <<'EOF'
+  cat > "${stub_bin}/herdr" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 echo "herdr $*" >> "${HERDR_STUB_LOG:?}"
@@ -84,22 +84,22 @@ case "$1 $2" in
   *) exit "${HERDR_STUB_RC:-0}" ;;
 esac
 EOF
-  chmod +x "${STUB_BIN}/herdr"
-  export HERDR_STUB_LOG="${T}/herdr.log" HERDR_ENV=1
+  chmod +x "${stub_bin}/herdr"
+  export HERDR_STUB_LOG="${t}/herdr.log" HERDR_ENV=1
   : > "${HERDR_STUB_LOG}"
 }
 
 # stub_bwrap — just enough for `command -v bwrap` to succeed.
 stub_bwrap() {
-  printf '#!/usr/bin/env bash\nexit 0\n' > "${STUB_BIN}/bwrap"
-  chmod +x "${STUB_BIN}/bwrap"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "${stub_bin}/bwrap"
+  chmod +x "${stub_bin}/bwrap"
 }
 
 # seed_origin <name> — create a local bare origin with a main branch
 # containing one file; stub_gh clones from it.
 seed_origin() {
   local name="$1"
-  local seed="${T}/seed-${name}"
+  local seed="${t}/seed-${name}"
   git init -q -b main "${seed}"
   git -C "${seed}" -c user.email=t@t -c user.name=t commit -qm init --allow-empty
   git clone -q --bare "${seed}" "${STUB_ORIGIN}/${name}.git"
