@@ -1,5 +1,5 @@
 ---
-type: Design Doc
+type: Reference
 title: Agent Skills
 description: The slash-command skills shipped in .agents/skills and what each one orchestrates.
 status: current

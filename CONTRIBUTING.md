@@ -40,8 +40,11 @@ Docs are part of every change:
 
 - **`docs/design/`** — design docs in Google OKF v0.2 (markdown + YAML
   frontmatter; `type`, `title`, `description`, `status`,
-  `last_modified`, `sources`). Update the relevant doc in the same commit
-  as any behavior change.
+  `last_modified`, `sources`). Design docs capture intent and invariants
+  (What/Why/How at the design level), not implementation detail. Update
+  the relevant doc in the same commit as any behavior change.
+- **`docs/reference/`** — fact inventories (config tables, script/skill
+  lists). Same frontmatter convention with `type: Reference`.
 - **`docs/adr/`** — record significant decisions as
   `docs/adr/NNNN-<slug>.md` (Context / Decision / Consequences, OKF
   frontmatter `type: ADR`). Numbers are sequential.

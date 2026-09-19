@@ -1,5 +1,5 @@
 ---
-type: Design Doc
+type: Reference
 title: Harness Scripts
 description: Behavior contract of every script under scripts/ — what it does, what it writes, and what it prints.
 status: current

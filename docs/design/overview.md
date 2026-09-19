@@ -119,10 +119,10 @@ ancestor — the policy boundary). See ADR-0007.
 | Orchestrator | Receives the human's request, dispatches workers, reports worker status on request. Does no implementation work itself | [orchestration.md](orchestration.md) |
 | Worker | Executes the task inside its assigned worktree; may use repo-local and global skills; cannot access outside its worktree | [orchestration.md](orchestration.md) |
 | Worker sandbox | bubblewrap mount namespace confining a worker to its worktree | [sandbox.md](sandbox.md) |
-| Guard hooks | Repo-local `PreToolUse` policies confining the orchestrator's own file/shell access | [agent-integrations.md](agent-integrations.md) |
-| Agent configs | Per-CLI config dirs + canonical `.agents/skills` | [agent-integrations.md](agent-integrations.md) |
-| Skills | Slash-command procedures available to the orchestrator | [skills.md](skills.md) |
-| Harness scripts | `setup-repo`, `create-worktree`, `spawn-repo-agent` — import, isolation, dispatch | [scripts.md](scripts.md) |
+| Guard hooks | Repo-local `PreToolUse` policies confining the orchestrator's own file/shell access | [guard-hooks.md](guard-hooks.md) |
+| Agent configs | Per-CLI config dirs + canonical `.agents/skills` | [../reference/agent-configs.md](../reference/agent-configs.md) |
+| Skills | Slash-command procedures available to the orchestrator | [../reference/skills.md](../reference/skills.md) |
+| Harness scripts | `setup-repo`, `create-worktree`, `spawn-repo-agent` — import, isolation, dispatch | [../reference/scripts.md](../reference/scripts.md) |
 
 ## Security posture
 

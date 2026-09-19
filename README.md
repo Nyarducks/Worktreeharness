@@ -51,9 +51,8 @@ scripts/spawn-repo-agent.sh <owner>/<repo> -- "<task description>"
 | `docs/design/overview.md` | Why this exists — goal, requirements, high-level architecture |
 | `docs/design/orchestration.md` | How to ask the orchestrator to run workers; lifecycle, monitoring, cleanup |
 | `docs/design/sandbox.md` | Worker sandbox permission model |
-| `docs/design/agent-integrations.md` | Per-agent config dirs, guard-hook policies, `ALLOWED_EXT_DIRS` |
-| `docs/design/skills.md` | Skill inventory |
-| `docs/design/scripts.md` | Script reference |
+| `docs/design/guard-hooks.md` | Guard-hook policies, `ALLOWED_EXT_DIRS` |
+| `docs/reference/` | Fact inventories — agent configs, skills, scripts |
 | `docs/adr/` | Architecture decision records |
 | `CONTRIBUTING.md` | Development rules |
 
