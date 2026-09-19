@@ -20,20 +20,23 @@ Imports a GitHub repository into the lab. Clones into `repos/<repo>/` on
 first run; on later runs fetches and fast-forwards the default branch.
 Prints the absolute repo path.
 
-### `create-worktree.sh <[org/]repo> <branch>`
+### `create-worktree.sh [--detach] <[org/]repo> <name>`
 
-Creates `worktree/<repo>/<branch>` on a new branch based on
-`origin/main`. Calls `setup-repo.sh` internally when the repo is not yet
+Creates `worktree/<repo>/<name>` based on `origin/main` — on a new branch
+named `<name>` by default, or on a detached HEAD when `--detach` is given
+(used for dispatched task worktrees; no branch is named before the task
+is understood). Calls `setup-repo.sh` internally when the repo is not yet
 imported. Prints the absolute worktree path — use it for all edits.
 
 ### `spawn-repo-agent.sh [--kind <kind>] [--no-sandbox] <[org/]repo> -- <task>`
 
 Dispatches a task to a dedicated worker agent via herdr. Creates a
-collision-free task worktree (`worktree/<repo>/task/<uuid>`), reuses or
-creates the repo's herdr workspace + tab, launches the agent (sandboxed by
-default via `scripts/lib/sandbox-wrap.sh`), and submits the task with a
-self-naming preamble. Prints `Dispatched to pane <pane_id>` — keep the
-pane id for monitoring. See `orchestration.md`.
+collision-free task worktree (`worktree/<repo>/task/<uuid>`, detached HEAD
+at `origin/main`), reuses or creates the repo's herdr workspace + tab,
+launches the agent (sandboxed by default via
+`scripts/lib/sandbox-wrap.sh`), and submits the task with a self-naming
+preamble. Prints `Dispatched to pane <pane_id>` — keep the pane id for
+monitoring. See `orchestration.md`.
 
 ### `append-pr-log.sh <owner>/<repo> <pr-number> <worktree-path>`
 
@@ -45,6 +48,12 @@ PRs.
 
 Installs the git hooks in `scripts/hooks/` as symlinks into the common git
 dir. Safe to run from the base repo or any worktree.
+
+### `lint.sh`
+
+Runs shellcheck over every tracked shell file (`*.sh` plus the
+extension-less git hooks). Prefers the portable, gitignored
+`tools/shellcheck` install; falls back to shellcheck on PATH.
 
 ## scripts/hooks/
 
@@ -61,6 +70,17 @@ Shared by every agent guard hook. Provides the unconditional
 dangerous-`rm` blocklist (recursive deletes of `$HOME`, `/`, `/home`,
 `/etc`, `/usr`, `/var`, …, including `sudo` and glob forms) and
 `load_allowed_ext_dirs`, which reads `ALLOWED_EXT_DIRS` from a given `.env`.
+
+### `hook-common.sh`
+
+Shared core for the per-agent `PreToolUse` guard hooks. Resolves the
+script root (from the hook path) and the harness root (walk-up to the
+nearest `repos/` + `worktree/` ancestor), runs the command-token and
+path-list guard checks, unions `ALLOWED_EXT_DIRS` from both roots, and
+emits each agent kind's deny JSON (claude/codex `permissionDecision`,
+agy `deny`, devin `block`). The files under `.<agent>/hooks/` are thin
+adapters supplying only the agent kind and stdin JSON field names;
+`hook_main_command` / `hook_main_file` run the full stdin→decision flow.
 
 ### `sandbox-wrap.sh`
 

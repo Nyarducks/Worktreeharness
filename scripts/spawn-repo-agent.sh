@@ -3,8 +3,9 @@
 #
 # Dispatches a task to a dedicated agent process via herdr:
 #   1. imports/refreshes repos/<repo> and creates a worktree at
-#      worktree/<repo>/task/<uuid> — the uuid leaf keeps concurrent
-#      dispatches collision-free
+#      worktree/<repo>/task/<uuid> with a detached HEAD at origin/main —
+#      the uuid leaf keeps concurrent dispatches collision-free and no
+#      branch is named before the task is understood
 #   2. reuses the repo's herdr workspace (one workspace per repo, matched by
 #      label) or creates it, adding a tab bound to the new worktree
 #   3. starts the agent in that tab's root pane with cwd=<worktree>, so the
@@ -28,7 +29,7 @@ usage() {
 
 require_herdr() {
   command -v herdr > /dev/null 2>&1 || {
-    echo "Error: herdr not found on PATH. Fall back to /parallel-worktree instead." >&2
+    echo "Error: herdr not found on PATH. Cannot dispatch a worker." >&2
     exit 1
   }
   [[ "${HERDR_ENV:-}" == "1" ]] || {
@@ -104,12 +105,16 @@ ensure_trusted_workspace() {
 
   local agy_settings="${HOME}/.gemini/antigravity-cli/settings.json"
   if [[ -f "${agy_settings}" ]]; then
+    # single quotes are intentional — $path is a jq variable, not shell
+    # shellcheck disable=SC2016
     json_merge_atomic "${agy_settings}" "${worktree_path}" \
       '.trustedWorkspaces = ((.trustedWorkspaces // []) + [$path] | unique)'
   fi
 
   local claude_settings="${HOME}/.claude.json"
   if [[ -f "${claude_settings}" ]]; then
+    # single quotes are intentional — $path is a jq variable, not shell
+    # shellcheck disable=SC2016
     json_merge_atomic "${claude_settings}" "${worktree_path}" \
       '.projects[$path] = ((.projects[$path] // {}) + {hasTrustDialogAccepted: true})'
   fi
@@ -166,21 +171,22 @@ main() {
 
   local repo_name="${repo_arg##*/}"
   repo_name="${repo_name%.git}"
-  local uuid branch wt pane_id
+  local uuid leaf wt pane_id
   uuid="$(gen_uuid)"
-  branch="task/${uuid}"
+  leaf="task/${uuid}"
 
   # create-worktree.sh also imports/refreshes repos/<repo> via setup-repo.sh
   # and installs the harness git hooks. Its summary goes to stdout; only the
-  # Path line is consumed here.
-  wt="$("${script_dir}/create-worktree.sh" "${repo_arg}" "${branch}" |
+  # Path line is consumed here. The worktree starts on a detached HEAD at
+  # origin/main — no branch is named until the work (and its slug) is known.
+  wt="$("${script_dir}/create-worktree.sh" --detach "${repo_arg}" "${leaf}" |
     awk '/^  Path:/ {print $2; exit}')"
   [[ -n "${wt}" && -d "${wt}" ]] || {
-    echo "Error: worktree was not created for ${repo_arg} ${branch}." >&2
+    echo "Error: worktree was not created for ${repo_arg} ${leaf}." >&2
     exit 1
   }
 
-  pane_id="$(workspace_pane_for "${repo_name}" "${wt}" "${branch//\//-}")"
+  pane_id="$(workspace_pane_for "${repo_name}" "${wt}" "${leaf//\//-}")"
   local tab_id
   tab_id="$(herdr pane get "${pane_id}" | jq -r '.result.pane.tab_id // empty')"
 
@@ -225,6 +231,8 @@ main() {
     # denied by the calling agent's own permission classifier; `pane run`
     # (typing the launch command into an existing pane) is not, and the agent
     # still self-registers via its SessionStart hook.
+    # ${agent_flags} must word-split — it is a flag string, not a path
+    # shellcheck disable=SC2086
     if ! herdr agent start "${agent_name}" --kind "${kind}" --pane "${pane_id}" -- ${agent_flags} >&2; then
       if ! herdr agent get "${pane_id}" > /dev/null 2>&1; then
         herdr pane run "${pane_id}" "cd ${wt} && ${kind} ${agent_flags}" >&2
@@ -253,7 +261,7 @@ Task: ${task_text}"
     echo "  herdr agent read ${pane_id} --lines 30" >&2
   fi
 
-  echo "Dispatched to pane ${pane_id} (repo=${repo_name} branch=${branch} worktree=${wt})."
+  echo "Dispatched to pane ${pane_id} (repo=${repo_name} worktree=${wt})."
 }
 
 main "$@"

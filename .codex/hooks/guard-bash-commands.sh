@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PreToolUse hook (devin): guard exec commands — dangerous `rm` plus paths
+# PreToolUse hook (codex): guard shell commands — dangerous `rm` plus paths
 # outside the harness root. Shared logic: scripts/lib/hook-common.sh.
 set -uo pipefail
 
@@ -7,4 +7,4 @@ script_root="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
 # shellcheck source=scripts/lib/hook-common.sh
 source "${script_root}/scripts/lib/hook-common.sh" 2>/dev/null || exit 0
 
-hook_main_command devin '.tool_input.command' '.cwd'
+hook_main_command codex '.tool_input.command' '.cwd'

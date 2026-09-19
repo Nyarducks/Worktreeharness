@@ -1,60 +1,27 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# PreToolUse hook (codex): guard apply_patch — every Add/Update/Delete/Move
+# target must land under worktree/. Shared logic: scripts/lib/hook-common.sh.
+set -uo pipefail
 
-deny() {
-  local reason="$1"
-  jq -n --arg reason "$reason" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$reason}}'
-}
-
-resolve_harness_root() {
-  local script_root base_repo
-  script_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-
-  base_repo="$(git -C "$script_root" worktree list --porcelain 2>/dev/null | awk '/^worktree / {print substr($0, 10); exit}')"
-  if [[ -n "$base_repo" && "$(basename "$(dirname "$base_repo")")" == "repos" ]]; then
-    dirname "$(dirname "$base_repo")"
-    return
-  fi
-
-  printf '%s\n' "$script_root"
-}
+script_root="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
+# shellcheck source=scripts/lib/hook-common.sh
+source "${script_root}/scripts/lib/hook-common.sh" 2>/dev/null || exit 0
 
 main() {
-  local input patch script_root harness_root worktree_root path target
+  local input patch reason
   input="$(cat)"
-  patch="$(jq -r '.tool_input.command // empty' <<< "$input")"
-  script_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-  harness_root="$(resolve_harness_root)"
-  worktree_root="$(realpath -m "$harness_root/worktree")"
+  patch="$(jq -r '.tool_input.command // empty' <<< "${input}")"
+  [[ -z "${patch}" ]] && exit 0
 
-  local allowed_dirs=""
-  # scripts/lib/ and .env live in this script's checkout, not at the lab root.
-  # shellcheck disable=SC1091
-  source "$script_root/scripts/lib/rm-guard.sh" 2>/dev/null || true
-  if declare -F load_allowed_ext_dirs > /dev/null; then
-    allowed_dirs="$(load_allowed_ext_dirs "$harness_root"; load_allowed_ext_dirs "$script_root")"
-  fi
-
-  while IFS= read -r path; do
-    [[ -z "$path" ]] && continue
-    path="${path#a/}"
-    path="${path#b/}"
-    if [[ "$path" = /* ]]; then
-      target="$(realpath -m "$path")"
-    else
-      target="$(realpath -m "$harness_root/$path")"
-    fi
-
-    if [[ "$target" != "$worktree_root" && "$target" != "$worktree_root/"* ]]; then
-      if [[ -n "$allowed_dirs" ]] && ext_dir_is_allowed "$target" "$allowed_dirs"; then
-        continue
-      fi
-      deny "Write blocked outside worktrees: ${target}. Create or resume a worktree under ${worktree_root}, or add this path to ALLOWED_EXT_DIRS in .env."
-      exit 0
-    fi
-  done < <(
-    sed -nE 's/^\*\*\* (Add|Update|Delete) File: (.*)$/\2/p; s/^\*\*\* Move to: (.*)$/\1/p' <<< "$patch"
-  )
+  # apply_patch paths are repo-relative — resolve them against the harness
+  # root, and strip the a/ b/ prefixes git-style paths carry.
+  reason="$(
+    sed -nE 's/^\*\*\* (Add|Update|Delete) File: (.*)$/\2/p; s/^\*\*\* Move to: (.*)$/\1/p' <<< "${patch}" \
+      | sed -E 's|^a/||; s|^b/||' \
+      | hook_guard_paths worktree "$(hook_harness_root "${script_root}")"
+  )"
+  [[ -n "${reason}" ]] && hook_deny_json codex "${reason}"
+  exit 0
 }
 
 main "$@"

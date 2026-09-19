@@ -25,8 +25,11 @@ single terminal, orchestrated through herdr.
 
 ## Non-Goal
 
-- The orchestrator does **not** perform the work itself — it manages
-  workspaces, workers, and status reporting.
+- The orchestrator does **not** perform delegated work on other
+  repositories in-process — it manages workspaces, workers, and status
+  reporting. The single exception is development of the Worktreeharness
+  repo itself, which the orchestrator does directly in a self-created
+  worktree (see `worktreeharness-development`, ADR-0008).
 - The orchestrator does **not** autonomously decompose the human's
   requirements and drive workers in a development loop — dispatch happens
   per explicit request.
@@ -119,7 +122,7 @@ ancestor — the policy boundary). See ADR-0007.
 
 | Component | Responsibility | Doc |
 |---|---|---|
-| Orchestrator | Receives the human's request, dispatches workers, reports worker status on request. Does no implementation work itself | [orchestration.md](orchestration.md) |
+| Orchestrator | Receives the human's request, dispatches workers, reports worker status on request. Implements only Worktreeharness itself, in a self-created worktree | [orchestration.md](orchestration.md) |
 | Worker | Executes the task inside its assigned worktree; may use repo-local and global skills; cannot access outside its worktree | [orchestration.md](orchestration.md) |
 | Worker sandbox | bubblewrap mount namespace confining a worker to its worktree | [sandbox.md](sandbox.md) |
 | Guard hooks | Repo-local `PreToolUse` policies confining the orchestrator's own file/shell access | [guard-hooks.md](guard-hooks.md) |

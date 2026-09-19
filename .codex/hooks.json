@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/restrict-to-harness-root.sh\"",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/guard-bash-commands.sh\"",
             "timeout": 30,
             "statusMessage": "Checking harness access policy"
           }

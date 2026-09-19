@@ -14,3 +14,4 @@ the change that introduces the decision; see `CONTRIBUTING.md`.
 | [0005](0005-canonical-agents-skills.md) | Canonical `.agents/skills`; per-agent hook config formats |
 | [0006](0006-bubblewrap-worker-sandbox.md) | Confine workers with bubblewrap; fail closed |
 | [0007](0007-repo-local-guard-hooks.md) | Repo-local guard hooks with dual-root (SCRIPT_ROOT / lab root) resolution |
+| [0008](0008-self-dev-vs-dispatch-split.md) | Harness self-development in-process, all other repos dispatched; detached task worktrees |

@@ -33,5 +33,5 @@ are spawned with `cwd = worktree` so the target repo's own `AGENTS.md` and
 - No harness-side state to keep in sync; `spawn-repo-agent.sh` is a thin
   composition of `create-worktree.sh` + herdr commands.
 - Follow-ups and inspection go through standard herdr commands.
-- Requires the herdr CLI and an active session; `/parallel-worktree`
-  remains the fallback.
+- Requires the herdr CLI and an active session. (The in-process
+  `/parallel-worktree` fallback was removed — see ADR-0008.)

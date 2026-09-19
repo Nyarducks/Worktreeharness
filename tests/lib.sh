@@ -8,13 +8,16 @@
 # The hook output shape differs per agent, so deny detection accepts
 #   {hookSpecificOutput:{permissionDecision:"deny"}}   (claude, codex)
 #   {decision:"deny"|"block"}                          (antigravity, devin)
+#
+# shellcheck disable=SC2154
+# (repo_root is provided by the sourcing test script)
 
-PASS=0
-FAIL=0
-declare -a FAILED_NAMES=()
+pass=0
+fail=0
+declare -a failed_names=()
 
-ok()  { PASS=$((PASS + 1)); printf '  ok   %s\n' "$1"; }
-bad() { FAIL=$((FAIL + 1)); FAILED_NAMES+=("$1"); printf '  FAIL %s\n' "$1"; }
+ok()  { pass=$((pass + 1)); printf '  ok   %s\n' "$1"; }
+bad() { fail=$((fail + 1)); failed_names+=("$1"); printf '  fail %s\n' "$1"; }
 
 # run_hook <script> <json> — feed payload on stdin, capture stdout+stderr.
 run_hook() {
@@ -74,21 +77,21 @@ install_hooks() {
   local co="$1" d
   for d in .claude .agents .codex .devin; do
     mkdir -p "${co}/${d}"
-    cp -R "${REPO_ROOT}/${d}/hooks" "${co}/${d}/"
+    cp -R "${repo_root}/${d}/hooks" "${co}/${d}/"
   done
-  cp "${REPO_ROOT}/.claude/settings.json"   "${co}/.claude/"
-  cp "${REPO_ROOT}/.agents/hooks.json"      "${co}/.agents/"
-  cp "${REPO_ROOT}/.codex/hooks.json"       "${co}/.codex/"
-  cp "${REPO_ROOT}/.devin/hooks.v1.json"    "${co}/.devin/"
+  cp "${repo_root}/.claude/settings.json"   "${co}/.claude/"
+  cp "${repo_root}/.agents/hooks.json"      "${co}/.agents/"
+  cp "${repo_root}/.codex/hooks.json"       "${co}/.codex/"
+  cp "${repo_root}/.devin/hooks.v1.json"    "${co}/.devin/"
   mkdir -p "${co}/scripts"
-  cp -R "${REPO_ROOT}/scripts/lib" "${co}/scripts/"
+  cp -R "${repo_root}/scripts/lib" "${co}/scripts/"
 }
 
 # build_split <lab> — <lab>/{repos,worktree}/ with a real linked-worktree
 # checkout at worktree/TestRepo/feat-x (mirrors the production topology).
 # A real git worktree is required: `git rev-parse --show-toplevel` must
-# resolve for the hook-command resolution tests, and codex hooks locate the
-# lab root via `git worktree list`.
+# resolve for the hook-command resolution tests, and the hooks find the
+# lab root by walking up to the dir holding both repos/ and worktree/.
 build_split() {
   local lab="$1"
   mkdir -p "${lab}/repos" "${lab}/worktree"

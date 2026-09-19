@@ -11,7 +11,7 @@ A harness for worktree-driven multi-repository development. All code changes flo
 | `jq` | Hook input parsing | `sudo apt install jq` / `brew install jq` |
 | `bash` ≥ 4.0 | Script runtime | Pre-installed; macOS ships bash 3 — `brew install bash` |
 | `realpath` | Path normalisation in hooks | GNU coreutils; on macOS `brew install coreutils` |
-| `herdr` | Orchestration for dispatched workers | see https://devin.ai |
+| `herdr` | Orchestration for dispatched workers | https://herdr.dev |
 | `bwrap` | Worker sandbox (fail-closed; `--no-sandbox` opts out) | `sudo apt install bubblewrap` |
 
 **Optional agent CLIs** — at least one needed to dispatch workers (`--kind`):

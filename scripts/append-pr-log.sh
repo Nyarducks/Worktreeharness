@@ -15,7 +15,7 @@
 #   EOF
 set -euo pipefail
 
-DECISION_LOGS_HEADER="## Decision Logs"
+readonly DECISION_LOGS_HEADER="## Decision Logs"
 
 usage() {
   echo "Usage: $0 <owner>/<repo> <pr-number> <worktree-path>" >&2
@@ -24,77 +24,77 @@ usage() {
 }
 
 read_stdin_content() {
-  local CONTENT
-  CONTENT="$(cat)"
-  if [[ -z "${CONTENT}" ]]; then
+  local content
+  content="$(cat)"
+  if [[ -z "${content}" ]]; then
     echo "Error: no content on stdin — provide the details body." >&2
     exit 1
   fi
-  printf '%s' "${CONTENT}"
+  printf '%s' "${content}"
 }
 
 get_commit_info() {
-  local WORKTREE_PATH="$1"
-  COMMIT_MSG="$(git -C "${WORKTREE_PATH}" log -1 --pretty=%s)"
-  SHORT_SHA="$(git -C "${WORKTREE_PATH}" rev-parse --short HEAD)"
+  local worktree_path="$1"
+  commit_msg="$(git -C "${worktree_path}" log -1 --pretty=%s)"
+  short_sha="$(git -C "${worktree_path}" rev-parse --short HEAD)"
 }
 
 build_entry() {
-  local INNER_CONTENT="$1"
+  local inner_content="$1"
   printf '<details>\n<summary>%s (%s)</summary>\n\n%s\n\n---\n\n</details>' \
-    "${COMMIT_MSG}" "${SHORT_SHA}" "${INNER_CONTENT}"
+    "${commit_msg}" "${short_sha}" "${inner_content}"
 }
 
 get_pr_body() {
-  local OWNER_REPO="$1"
-  local PR="$2"
-  gh api "repos/${OWNER_REPO}/pulls/${PR}" --jq '.body // ""'
+  local owner_repo="$1"
+  local pr="$2"
+  gh api "repos/${owner_repo}/pulls/${pr}" --jq '.body // ""'
 }
 
 append_to_pr_body() {
-  local OWNER_REPO="$1"
-  local PR="$2"
-  local CURRENT_BODY="$3"
-  local NEW_ENTRY="$4"
+  local owner_repo="$1"
+  local pr="$2"
+  local current_body="$3"
+  local new_entry="$4"
 
-  local NEW_BODY
-  if printf '%s' "${CURRENT_BODY}" | grep -qF "${DECISION_LOGS_HEADER}"; then
-    NEW_BODY="${CURRENT_BODY}
+  local new_body
+  if printf '%s' "${current_body}" | grep -qF "${DECISION_LOGS_HEADER}"; then
+    new_body="${current_body}
 
-${NEW_ENTRY}"
+${new_entry}"
   else
-    NEW_BODY="${CURRENT_BODY}
+    new_body="${current_body}
 
 ${DECISION_LOGS_HEADER}
 
-${NEW_ENTRY}"
+${new_entry}"
   fi
 
-  gh api "repos/${OWNER_REPO}/pulls/${PR}" -X PATCH \
-    -f "body=${NEW_BODY}" \
+  gh api "repos/${owner_repo}/pulls/${pr}" -X PATCH \
+    -f "body=${new_body}" \
     --jq '.number | "Updated PR #\(.)"'
 }
 
 main() {
   [[ $# -ne 3 ]] && usage
 
-  local OWNER_REPO="$1"
-  local PR="$2"
-  local WORKTREE_PATH="$3"
+  local owner_repo="$1"
+  local pr="$2"
+  local worktree_path="$3"
 
-  local INNER_CONTENT
-  INNER_CONTENT="$(read_stdin_content)"
+  local inner_content
+  inner_content="$(read_stdin_content)"
 
-  local COMMIT_MSG SHORT_SHA
-  get_commit_info "${WORKTREE_PATH}"
+  local commit_msg short_sha
+  get_commit_info "${worktree_path}"
 
-  local NEW_ENTRY
-  NEW_ENTRY="$(build_entry "${INNER_CONTENT}")"
+  local new_entry
+  new_entry="$(build_entry "${inner_content}")"
 
-  local CURRENT_BODY
-  CURRENT_BODY="$(get_pr_body "${OWNER_REPO}" "${PR}")"
+  local current_body
+  current_body="$(get_pr_body "${owner_repo}" "${pr}")"
 
-  append_to_pr_body "${OWNER_REPO}" "${PR}" "${CURRENT_BODY}" "${NEW_ENTRY}"
+  append_to_pr_body "${owner_repo}" "${pr}" "${current_body}" "${new_entry}"
 }
 
 main "$@"

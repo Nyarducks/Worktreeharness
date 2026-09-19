@@ -11,7 +11,7 @@
 
 # Absolute top-level directories that must never be the direct target of a
 # recursive rm, regardless of ALLOWED_EXT_DIRS.
-_RM_GUARD_CRITICAL_DIRS=(
+readonly -a _RM_GUARD_CRITICAL_DIRS=(
   /home /Users /root /etc /usr /var /bin /sbin /boot /lib /lib64
   /opt /System /Library /mnt /media /srv
 )
@@ -41,6 +41,8 @@ rm_guard_resolve_token() {
 
   tok="${tok//\$\{HOME\}/${home}}"
   tok="${tok//\$HOME/${home}}"
+  # "~/" is an intentional literal-tilde match, not an expansion.
+  # shellcheck disable=SC2088
   if [[ "${tok}" == "~" ]]; then
     tok="${home}"
   elif [[ "${tok}" == "~/"* ]]; then
@@ -136,7 +138,8 @@ rm_guard_dangerous_reason() {
 load_allowed_ext_dirs() {
   local harness_root="$1"
   if [[ -f "${harness_root}/.env" ]]; then
-    # shellcheck disable=SC1090
+    # .env is optional user config resolved at runtime — nothing to follow.
+    # shellcheck source=/dev/null
     source "${harness_root}/.env"
   fi
   [[ -z "${ALLOWED_EXT_DIRS:-}" ]] && return 0

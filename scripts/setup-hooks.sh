@@ -3,28 +3,28 @@
 # Safe to call from both the main repo and any worktree.
 set -euo pipefail
 
-# Output variables: REPO_ROOT, GIT_COMMON_DIR
+# Output variables: repo_root, git_common_dir
 resolve_git_dirs() {
-  local SCRIPT_DIR="$1"
-  REPO_ROOT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel)"
-  GIT_COMMON_DIR="$(git -C "${REPO_ROOT}" rev-parse --git-common-dir)"
-  if [[ "${GIT_COMMON_DIR}" != /* ]]; then
-    GIT_COMMON_DIR="${REPO_ROOT}/${GIT_COMMON_DIR}"
+  local script_dir="$1"
+  repo_root="$(git -C "${script_dir}" rev-parse --show-toplevel)"
+  git_common_dir="$(git -C "${repo_root}" rev-parse --git-common-dir)"
+  if [[ "${git_common_dir}" != /* ]]; then
+    git_common_dir="${repo_root}/${git_common_dir}"
   fi
 }
 
 install_hooks() {
-  mkdir -p "${GIT_COMMON_DIR}/hooks"
-  ln -sf "${REPO_ROOT}/scripts/hooks/pre-commit" "${GIT_COMMON_DIR}/hooks/pre-commit"
+  mkdir -p "${git_common_dir}/hooks"
+  ln -sf "${repo_root}/scripts/hooks/pre-commit" "${git_common_dir}/hooks/pre-commit"
   echo "git hooks installed"
 }
 
 main() {
-  local SCRIPT_DIR
-  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-  local REPO_ROOT GIT_COMMON_DIR
-  resolve_git_dirs "${SCRIPT_DIR}"
+  local repo_root git_common_dir
+  resolve_git_dirs "${script_dir}"
   install_hooks
 }
 

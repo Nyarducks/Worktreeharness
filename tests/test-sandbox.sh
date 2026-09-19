@@ -10,19 +10,19 @@
 # Usage: bash tests/test-sandbox.sh
 set -uo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=scripts/lib/sandbox-wrap.sh
-source "${REPO_ROOT}/scripts/lib/sandbox-wrap.sh"
+source "${repo_root}/scripts/lib/sandbox-wrap.sh"
 # shellcheck source=tests/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 # The scratch root must NOT live under /tmp: the sandbox mounts a tmpfs over
 # /tmp, which would orphan a worktree bind beneath it (the worktree-under-/tmp
 # fallback is covered by a separate unit check).
-SAND_BASE="/var/tmp"
-[[ -w "${SAND_BASE}" ]] || SAND_BASE="${HOME}"
-SAND="$(realpath "$(mktemp -d "${SAND_BASE}/wth-sandbox.XXXXXX")")"
-trap 'rm -rf "${SAND}"' EXIT
+sand_base="/var/tmp"
+[[ -w "${sand_base}" ]] || sand_base="${HOME}"
+sand="$(realpath "$(mktemp -d "${sand_base}/wth-sandbox.XXXXXX")")"
+trap 'rm -rf "${sand}"' EXIT
 
 expect_rc() { # <name> <rc> <want: 0|nz>
   if [[ "$3" == 0 && "$2" -eq 0 ]] || [[ "$3" == nz && "$2" -ne 0 ]]; then
@@ -38,15 +38,27 @@ expect_file() { # <name> <path> <exists|absent>
     bad "$1"; printf '       path=%s\n' "$2"
   fi
 }
-expect_grep()     { [[ "$2" == *"$3"* ]] && ok "$1" || { bad "$1"; printf '       missing: %s\n' "$3"; }; }
-expect_not_grep() { [[ "$2" != *"$3"* ]] && ok "$1" || { bad "$1"; printf '       unexpected: %s\n' "$3"; }; }
+expect_grep() { # <name> <haystack> <needle>
+  if [[ "$2" == *"$3"* ]]; then
+    ok "$1"
+  else
+    bad "$1"; printf '       missing: %s\n' "$3"
+  fi
+}
+expect_not_grep() { # <name> <haystack> <needle>
+  if [[ "$2" != *"$3"* ]]; then
+    ok "$1"
+  else
+    bad "$1"; printf '       unexpected: %s\n' "$3"
+  fi
+}
 
 # run_sandbox <bash-script> [kind] — run <script> inside the wrapped sandbox,
-# against worktree $WT (set by the caller). Prints captured output.
-WT=""
+# against worktree $wt (set by the caller). Prints captured output.
+wt=""
 run_sandbox() {
   local wrapped
-  wrapped="$(sandbox_wrap_cmd "${WT}" "${2:-claude}" bash -c "$1")" || return 99
+  wrapped="$(sandbox_wrap_cmd "${wt}" "${2:-claude}" bash -c "$1")" || return 99
   bash -c "${wrapped}" 2>&1
 }
 
@@ -69,13 +81,20 @@ expect_grep     "tmp worktree: /tmp bound"   "${out}" "--bind /tmp /tmp"
 expect_not_grep "tmp worktree: no /tmp tmpfs" "${out}" "--tmpfs /tmp"
 
 # nonexistent bind sources are skipped (bwrap would fail on a missing source)
-MISSING="${SAND}/does-not-exist"
+missing="${sand}/does-not-exist"
 out="$(sandbox_wrap_cmd "/some/wt" claude bash)"
-expect_not_grep "missing path not bound" "${out}" "${MISSING}"
+expect_not_grep "missing path not bound" "${out}" "${missing}"
 
 # bwrap missing → rc 3 (fail closed at the call site)
+# PATH override is deliberate — simulates bwrap being absent
+# shellcheck disable=SC2123
 ( PATH="/nonexistent"; sandbox_wrap_cmd "/x" claude bash ) > /dev/null 2>&1
-[[ $? -eq 3 ]] && ok "bwrap missing -> rc 3" || bad "bwrap missing -> rc 3"
+rc=$?
+if [[ "${rc}" -eq 3 ]]; then
+  ok "bwrap missing -> rc 3"
+else
+  bad "bwrap missing -> rc 3"
+fi
 
 # per-kind binds appear only when the dir exists on the host
 out="$(sandbox_wrap_cmd "/some/wt" devin devin)"
@@ -87,16 +106,16 @@ fi
 
 # an agent binary installed under $HOME is rebound at its PATH location —
 # otherwise the tmpfs'd $HOME hides it from execvp
-DEVIN_BIN="$(command -v devin 2>/dev/null || true)"
-if [[ -n "${DEVIN_BIN}" && "${DEVIN_BIN}" == "${HOME}/"* ]]; then
+devin_bin="$(command -v devin 2>/dev/null || true)"
+if [[ -n "${devin_bin}" && "${devin_bin}" == "${HOME}/"* ]]; then
   expect_grep "agent binary under HOME is rebound" "${out}" "--bind"
-  expect_grep "agent binary rebound at PATH path" "${out}" "${DEVIN_BIN}"
+  expect_grep "agent binary rebound at PATH path" "${out}" "${devin_bin}"
 fi
 
 # herdr is always rebound too — workers self-rename via `herdr agent rename`
-HERDR_BIN="$(command -v herdr 2>/dev/null || true)"
-if [[ -n "${HERDR_BIN}" && "${HERDR_BIN}" == "${HOME}/"* ]]; then
-  expect_grep "herdr binary under HOME is rebound" "${out}" "${HERDR_BIN}"
+herdr_bin="$(command -v herdr 2>/dev/null || true)"
+if [[ -n "${herdr_bin}" && "${herdr_bin}" == "${HOME}/"* ]]; then
+  expect_grep "herdr binary under HOME is rebound" "${out}" "${herdr_bin}"
 fi
 
 # ---------------- live: real sandbox confinement ----------------
@@ -104,46 +123,51 @@ if ! command -v bwrap > /dev/null 2>&1; then
   echo "== live tests skipped: bwrap not installed =="
 else
   echo "== live: sandboxed process inside a split lab =="
-  LAB="${SAND}/lab"
-  build_split "${LAB}"
-  WT="${LAB}/worktree/TestRepo/feat-x"
+  lab="${sand}/lab"
+  build_split "${lab}"
+  wt="${lab}/worktree/TestRepo/feat-x"
 
   run_sandbox 'touch wt-file.txt' > /dev/null
-  expect_file "write inside worktree persists" "${WT}/wt-file.txt" exists
+  expect_file "write inside worktree persists" "${wt}/wt-file.txt" exists
 
   run_sandbox 'git add wt-file.txt && git -c user.email=t@t -c user.name=t commit -qm sb-test' > /dev/null
-  last_commit="$(git -C "${WT}" log -1 --pretty=%s 2>/dev/null)"
-  [[ "${last_commit}" == "sb-test" ]] \
-    && ok "git commit works (base .git bound)" \
-    || bad "git commit works (base .git bound)"
+  last_commit="$(git -C "${wt}" log -1 --pretty=%s 2>/dev/null)"
+  if [[ "${last_commit}" == "sb-test" ]]; then
+    ok "git commit works (base .git bound)"
+  else
+    bad "git commit works (base .git bound)"
+  fi
 
-  run_sandbox "touch ${LAB}/escape.txt 2>/dev/null; true" > /dev/null
-  expect_file "write at lab root blocked" "${LAB}/escape.txt" absent
+  run_sandbox "touch ${lab}/escape.txt 2>/dev/null; true" > /dev/null
+  expect_file "write at lab root blocked" "${lab}/escape.txt" absent
 
   run_sandbox 'touch /etc/wth-evil 2>/dev/null; true' > /dev/null
   expect_file "/etc write blocked" "/etc/wth-evil" absent
 
   # $HOME is a tmpfs: host content hidden, writes don't persist
-  MARKER="${HOME}/.wth-sbx-marker-$$"
-  touch "${MARKER}"
+  marker="${HOME}/.wth-sbx-marker-$$"
+  touch "${marker}"
   out="$(run_sandbox 'ls -a ~')"
   expect_not_grep "home contents hidden" "${out}" ".wth-sbx-marker-$$"
   run_sandbox "touch ~/wth-evil-$$; true" > /dev/null
   expect_file "home write is ephemeral" "${HOME}/wth-evil-$$" absent
-  rm -f "${MARKER}"
+  rm -f "${marker}"
 
   run_sandbox 'touch /tmp/wth-ephemeral-test; true' > /dev/null
   expect_file "/tmp write is ephemeral" "/tmp/wth-ephemeral-test" absent
 
   if [[ -d "${HOME}/.ssh" ]]; then
     # remotes are https via `gh` — nothing under ~/.ssh is bound at all
-    PRIV_MARKER="${HOME}/.ssh/wth-privkey-$$"
-    touch "${PRIV_MARKER}"
+    priv_marker="${HOME}/.ssh/wth-privkey-$$"
+    touch "${priv_marker}"
     out="$(run_sandbox 'ls ~/.ssh')"
     expect_not_grep "ssh private keys hidden" "${out}" "wth-privkey-$$"
-    rm -f "${PRIV_MARKER}"
+    rm -f "${priv_marker}"
   fi
   if [[ -S "${SSH_AUTH_SOCK:-}" ]]; then
+    # the var must expand inside the sandbox, not here — single quotes are
+    # intentional
+    # shellcheck disable=SC2016
     run_sandbox 'test -S "${SSH_AUTH_SOCK}"' > /dev/null 2>&1
     expect_rc "ssh agent socket not bound" "$?" 1
   fi
@@ -153,34 +177,36 @@ else
   fi
   if [[ -f "${HOME}/.gitconfig" ]]; then
     run_sandbox 'test -r ~/.gitconfig' > /dev/null 2>&1
-    expect_rc "~/.gitconfig readable" "$?" 0
+    expect_rc "${HOME}/.gitconfig readable" "$?" 0
     run_sandbox 'touch ~/.gitconfig 2>/dev/null' > /dev/null 2>&1
-    expect_rc "~/.gitconfig read-only" "$?" nz
+    expect_rc "${HOME}/.gitconfig read-only" "$?" nz
   fi
 
   # pid namespace: sandbox sees only its own processes
   procs="$(run_sandbox 'ls /proc | grep -cE "^[0-9]+"')"
-  [[ "${procs}" =~ ^[0-9]+$ && ${procs} -lt 20 ]] \
-    && ok "pid namespace isolates process table (${procs} visible)" \
-    || bad "pid namespace isolates process table (saw: ${procs})"
+  if [[ "${procs}" =~ ^[0-9]+$ && ${procs} -lt 20 ]]; then
+    ok "pid namespace isolates process table (${procs} visible)"
+  else
+    bad "pid namespace isolates process table (saw: ${procs})"
+  fi
 
   # an agent CLI installed under $HOME still launches inside the sandbox
-  if [[ -n "${DEVIN_BIN:-}" && "${DEVIN_BIN}" == "${HOME}/"* ]]; then
+  if [[ -n "${devin_bin:-}" && "${devin_bin}" == "${HOME}/"* ]]; then
     out="$(run_sandbox 'devin --version' devin)"
     expect_grep "home-installed agent binary runs" "${out}" "devin"
   fi
 
   # herdr CLI stays usable inside the sandbox (self-rename path)
-  if [[ -n "${HERDR_BIN:-}" && "${HERDR_BIN}" == "${HOME}/"* ]]; then
+  if [[ -n "${herdr_bin:-}" && "${herdr_bin}" == "${HOME}/"* ]]; then
     run_sandbox 'command -v herdr' > /dev/null 2>&1
     expect_rc "herdr binary usable inside sandbox" "$?" 0
   fi
 fi
 
 echo
-echo "passed: ${PASS}  failed: ${FAIL}"
-if [[ ${FAIL} -gt 0 ]]; then
+echo "passed: ${pass}  failed: ${fail}"
+if [[ ${fail} -gt 0 ]]; then
   printf 'failed tests:\n'
-  printf '  - %s\n' "${FAILED_NAMES[@]}"
+  printf '  - %s\n' "${failed_names[@]}"
   exit 1
 fi

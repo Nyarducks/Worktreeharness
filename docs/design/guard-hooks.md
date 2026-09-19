@@ -5,7 +5,7 @@ description: The repo-local PreToolUse policies that confine the orchestrator �
 status: current
 last_modified: 2026-09-20
 tags: [hooks, security, agents]
-sources: [scripts/lib/rm-guard.sh, .claude/settings.json, .codex/hooks.json, .agents/hooks.json, .devin/hooks.v1.json]
+sources: [scripts/lib/hook-common.sh, scripts/lib/rm-guard.sh, .claude/settings.json, .codex/hooks.json, .agents/hooks.json, .devin/hooks.v1.json]
 ---
 
 # Guard Hooks
@@ -18,7 +18,10 @@ advisory guardrails against accidents, in each agent's native hook format.
 
 ## Design
 
-Three `PreToolUse` policies, implemented once per agent format:
+Three `PreToolUse` policies, shared by every agent format. Each file
+under `.<agent>/hooks/` is a thin adapter that names the agent kind and
+its stdin JSON fields; the decision logic lives in
+`scripts/lib/hook-common.sh` (which sources `rm-guard.sh`):
 
 | Hook | Effect |
 |---|---|
@@ -29,9 +32,9 @@ Three `PreToolUse` policies, implemented once per agent format:
 ```mermaid
 flowchart TD
     Agent -->|PreToolUse JSON| Hook
-    Hook --> R1{"SCRIPT_ROOT<br/>= checkout<br/>(git rev-parse)"}
+    Hook --> R1{"SCRIPT_ROOT<br/>= checkout<br/>(from hook path)"}
     Hook --> R2{"lab root<br/>= ancestor with<br/>repos/ + worktree/"}
-    R1 -->|source rm-guard.sh,<br/>read checkout .env| Lib
+    R1 -->|source hook-common.sh<br/>+ rm-guard.sh,<br/>read checkout .env| Lib
     R2 -->|policy boundary,<br/>read lab .env| Policy
     Lib --> Decision{"path under<br/>boundary or<br/>ALLOWED_EXT_DIRS?"}
     Policy --> Decision
@@ -43,8 +46,9 @@ flowchart TD
 ## Key decisions
 
 - **Dual-root resolution** (ADR-0007): `SCRIPT_ROOT` (the checkout —
-  shared libs, checkout `.env`) is resolved via
-  `git rev-parse --show-toplevel`; the lab root (policy boundary) is the
+  shared libs, checkout `.env`) is derived from the hook's own path —
+  the configured `command` embeds `$(git rev-parse --show-toplevel)`, so
+  `$0` is checkout-absolute; the lab root (policy boundary) is the
   nearest ancestor containing `repos/` + `worktree/`. Works in both split
   and unified topologies.
 - **`.env` union**: `ALLOWED_EXT_DIRS` is read from both roots and

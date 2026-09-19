@@ -1,83 +1,10 @@
-#!/bin/bash
-# PreToolUse hook: Guard Bash commands.
-#   1. Unconditional safety net — deny any recursive `rm` that would purge
-#      $HOME, /, or another critical top-level directory, regardless of
-#      ALLOWED_EXT_DIRS. This is the last line of defense against a mistyped
-#      `rm -rf ~` or similar run with --dangerously-skip-permissions.
-#   2. Path restriction — absolute (or ../-relative) paths referenced in the
-#      command must resolve under the harness root, unless they fall under
-#      one of the directories listed in ALLOWED_EXT_DIRS (see .env.sample).
+#!/usr/bin/env bash
+# PreToolUse hook (claude): guard Bash commands — dangerous `rm` plus paths
+# outside the harness root. Shared logic: scripts/lib/hook-common.sh.
 set -uo pipefail
 
-deny() {
-  local MSG="$1"
-  jq -n --arg reason "${MSG}" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$reason}}'
-  exit 0
-}
+script_root="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
+# shellcheck source=scripts/lib/hook-common.sh
+source "${script_root}/scripts/lib/hook-common.sh" 2>/dev/null || exit 0
 
-is_system_path() {
-  case "$1" in
-    /bin/*|/usr/bin/*|/usr/local/bin/*|/dev/null) return 0 ;;
-    *) return 1 ;;
-  esac
-}
-
-main() {
-  local INPUT COMMAND CWD HARNESS_ROOT
-  INPUT="$(cat)"
-  COMMAND="$(jq -r '.tool_input.command // empty' <<< "${INPUT}")"
-  [[ -z "${COMMAND}" ]] && exit 0
-  CWD="$(jq -r '.cwd // empty' <<< "${INPUT}")"
-
-  # SCRIPT_ROOT = the checkout containing this script (scripts/lib/, .env).
-  # HARNESS_ROOT = nearest ancestor holding both repos/ and worktree/ — works
-  # whether the checkout IS the lab root or sits under <lab>/worktree/<repo>/<branch>.
-  local SCRIPT_ROOT DIR
-  SCRIPT_ROOT="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
-  DIR="${SCRIPT_ROOT}"
-  while [[ -n "${DIR}" && "${DIR}" != "/" ]]; do
-    if [[ -d "${DIR}/worktree" && -d "${DIR}/repos" ]]; then
-      HARNESS_ROOT="${DIR}"
-      break
-    fi
-    DIR="$(dirname "${DIR}")"
-  done
-  [[ -z "${HARNESS_ROOT}" ]] && HARNESS_ROOT="${SCRIPT_ROOT}"
-  [[ -z "${HARNESS_ROOT}" || ! -d "${HARNESS_ROOT}" ]] && exit 0
-  CWD="${CWD:-${HARNESS_ROOT}}"
-
-  # shellcheck disable=SC1091
-  source "${SCRIPT_ROOT}/scripts/lib/rm-guard.sh" 2>/dev/null || exit 0
-
-  # 1) Always-on safety net, checked before any allowlist bypass.
-  local RM_REASON
-  RM_REASON="$(rm_guard_dangerous_reason "${COMMAND}" "${CWD}")"
-  [[ -n "${RM_REASON}" ]] && deny "${RM_REASON}"
-
-  # 2) Harness-root restriction, with ALLOWED_EXT_DIRS as a scoped escape hatch.
-  local ALLOWED_DIRS
-  ALLOWED_DIRS="$(load_allowed_ext_dirs "${HARNESS_ROOT}"; load_allowed_ext_dirs "${SCRIPT_ROOT}")"
-
-  local CANDIDATE TARGET
-  while IFS= read -r CANDIDATE; do
-    [[ -z "${CANDIDATE}" ]] && continue
-    if [[ "${CANDIDATE}" = /* ]]; then
-      TARGET="$(realpath -m "${CANDIDATE}")"
-    else
-      TARGET="$(realpath -m "${CWD}/${CANDIDATE}")"
-    fi
-
-    is_system_path "${TARGET}" && continue
-    [[ "${TARGET}" == "${HARNESS_ROOT}" || "${TARGET}" == "${HARNESS_ROOT}/"* ]] && continue
-    if [[ -n "${ALLOWED_DIRS}" ]] && ext_dir_is_allowed "${TARGET}" "${ALLOWED_DIRS}"; then
-      continue
-    fi
-
-    deny "Access outside harness root blocked: ${TARGET}. Use repos/ for base clones and worktree/ for active worktrees, or add this path to ALLOWED_EXT_DIRS in .env."
-  done < <(
-    tr -c '[:alnum:]_./:+%@=-' '\n' <<< "${COMMAND}" |
-      awk '/^\// || /^\.\.?\//'
-  )
-}
-
-main
+hook_main_command claude '.tool_input.command' '.cwd'

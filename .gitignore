@@ -1,5 +1,6 @@
 repos/
 tmp/
+tools/
 worktree/
 .env
 
@@ -9,13 +10,9 @@ worktree/
 .agents/skills/*
 !.agents/skills/git-operations/
 !.agents/skills/git-operations/**
-!.agents/skills/herdr-dispatch/
-!.agents/skills/herdr-dispatch/**
-!.agents/skills/parallel-worktree/
-!.agents/skills/parallel-worktree/**
-!.agents/skills/pr-review-fix/
-!.agents/skills/pr-review-fix/**
-!.agents/skills/setup-harness/
-!.agents/skills/setup-harness/**
 !.agents/skills/workflow-shell-test/
 !.agents/skills/workflow-shell-test/**
+!.agents/skills/worktree-development/
+!.agents/skills/worktree-development/**
+!.agents/skills/worktreeharness-development/
+!.agents/skills/worktreeharness-development/**

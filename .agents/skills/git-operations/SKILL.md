@@ -1,9 +1,13 @@
 ---
 name: git-operations
-description: Git workflow guide for this harness. Use when cloning, branching, committing, or creating/editing PRs — enforces gh-based clone for private repos, feature branch from latest main, and PATCH-based PR edits.
+description: Git workflow guide for developing the Worktreeharness repository — used only from the worktreeharness-development skill. Use when cloning, branching, committing, or creating/editing PRs — enforces gh-based clone for private repos, feature branch from latest main, and PATCH-based PR edits.
 ---
 
 # Git Operations Guide
+
+> Scope: this skill applies to `worktreeharness-development` only — i.e.
+> work on the Worktreeharness repository itself. Dispatched workers on
+> other repositories follow that repo's own conventions instead.
 
 ## Clone a repository
 

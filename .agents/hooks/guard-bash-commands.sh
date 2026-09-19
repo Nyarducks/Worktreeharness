@@ -1,82 +1,10 @@
-#!/bin/bash
-# PreToolUse hook for Antigravity CLI (agy):
-# Guard run_command execution.
-#   1. Unconditional safety net — deny any recursive `rm` that would purge $HOME, /, etc.
-#   2. Path restriction — absolute (or ../-relative) paths referenced in command must resolve under harness root or ALLOWED_EXT_DIRS.
+#!/usr/bin/env bash
+# PreToolUse hook (antigravity): guard run_command — dangerous `rm` plus
+# paths outside the harness root. Shared logic: scripts/lib/hook-common.sh.
 set -uo pipefail
 
-deny() {
-  local MSG="$1"
-  jq -n --arg reason "${MSG}" '{decision:"deny",reason:$reason}'
-  exit 0
-}
+script_root="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
+# shellcheck source=scripts/lib/hook-common.sh
+source "${script_root}/scripts/lib/hook-common.sh" 2>/dev/null || exit 0
 
-is_system_path() {
-  case "$1" in
-    /bin/*|/usr/bin/*|/usr/local/bin/*|/dev/null) return 0 ;;
-    *) return 1 ;;
-  esac
-}
-
-# Output variables: SCRIPT_ROOT, HARNESS_ROOT
-# SCRIPT_ROOT = the checkout containing this script (scripts/lib/, .env).
-# HARNESS_ROOT = nearest ancestor holding both repos/ and worktree/.
-resolve_harness_root() {
-  SCRIPT_ROOT="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
-  local DIR="${SCRIPT_ROOT}"
-  while [[ -n "${DIR}" && "${DIR}" != "/" ]]; do
-    if [[ -d "${DIR}/worktree" && -d "${DIR}/repos" ]]; then
-      HARNESS_ROOT="${DIR}"
-      return 0
-    fi
-    DIR="$(dirname "${DIR}")"
-  done
-  HARNESS_ROOT="${SCRIPT_ROOT}"
-}
-
-main() {
-  local INPUT COMMAND CWD SCRIPT_ROOT HARNESS_ROOT
-  INPUT="$(cat)"
-  COMMAND="$(jq -r '.toolCall.args.CommandLine // empty' <<< "${INPUT}")"
-  [[ -z "${COMMAND}" ]] && exit 0
-  CWD="$(jq -r '.toolCall.args.Cwd // empty' <<< "${INPUT}")"
-
-  resolve_harness_root
-  [[ -z "${HARNESS_ROOT}" || ! -d "${HARNESS_ROOT}" ]] && exit 0
-  CWD="${CWD:-${HARNESS_ROOT}}"
-
-  # shellcheck disable=SC1091
-  source "${SCRIPT_ROOT}/scripts/lib/rm-guard.sh" 2>/dev/null || exit 0
-
-  # 1) Always-on safety net
-  local RM_REASON
-  RM_REASON="$(rm_guard_dangerous_reason "${COMMAND}" "${CWD}")"
-  [[ -n "${RM_REASON}" ]] && deny "${RM_REASON}"
-
-  # 2) Harness-root restriction
-  local ALLOWED_DIRS
-  ALLOWED_DIRS="$(load_allowed_ext_dirs "${HARNESS_ROOT}"; load_allowed_ext_dirs "${SCRIPT_ROOT}")"
-
-  local CANDIDATE TARGET
-  while IFS= read -r CANDIDATE; do
-    [[ -z "${CANDIDATE}" ]] && continue
-    if [[ "${CANDIDATE}" = /* ]]; then
-      TARGET="$(realpath -m "${CANDIDATE}")"
-    else
-      TARGET="$(realpath -m "${CWD}/${CANDIDATE}")"
-    fi
-
-    is_system_path "${TARGET}" && continue
-    [[ "${TARGET}" == "${HARNESS_ROOT}" || "${TARGET}" == "${HARNESS_ROOT}/"* ]] && continue
-    if [[ -n "${ALLOWED_DIRS}" ]] && ext_dir_is_allowed "${TARGET}" "${ALLOWED_DIRS}"; then
-      continue
-    fi
-
-    deny "Access outside harness root blocked: ${TARGET}. Use repos/ for base clones and worktree/ for active worktrees, or add this path to ALLOWED_EXT_DIRS in .env."
-  done < <(
-    tr -c '[:alnum:]_./:+%@=-' '\n' <<< "${COMMAND}" |
-      awk '/^\// || /^\.\.?\//'
-  )
-}
-
-main
+hook_main_command agy '.toolCall.args.CommandLine' '.toolCall.args.Cwd'

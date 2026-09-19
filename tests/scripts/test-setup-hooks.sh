@@ -4,35 +4,40 @@
 # (hooks must land in the shared .git, not the worktree's private one).
 set -uo pipefail
 
+# shellcheck source=tests/scripts/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 echo "== installs into main repo =="
 
-REPO="${T}/repo"
-git init -q "${REPO}"
-mkdir -p "${REPO}/scripts/hooks"
-cp "${REPO_ROOT}/scripts/setup-hooks.sh" "${REPO}/scripts/"
-printf '#!/bin/sh\nexit 0\n' > "${REPO}/scripts/hooks/pre-commit"
+repo="${t}/repo"
+git init -q "${repo}"
+mkdir -p "${repo}/scripts/hooks"
+cp "${repo_root}/scripts/setup-hooks.sh" "${repo}/scripts/"
+printf '#!/bin/sh\nexit 0\n' > "${repo}/scripts/hooks/pre-commit"
 
-out="$(bash "${REPO}/scripts/setup-hooks.sh")"
+out="$(bash "${repo}/scripts/setup-hooks.sh")"
 expect_grep "reports install" "${out}" "git hooks installed"
-hook="${REPO}/.git/hooks/pre-commit"
+hook="${repo}/.git/hooks/pre-commit"
 expect_file "pre-commit symlink" "${hook}" exists
-[[ -L "${hook}" ]] && ok "installed as symlink" || bad "installed as symlink"
+if [[ -L "${hook}" ]]; then
+  ok "installed as symlink"
+else
+  bad "installed as symlink"
+fi
 
 echo "== from a linked worktree, hooks land in the common git dir =="
 
-git -C "${REPO}" -c user.email=t@t -c user.name=t commit -qm init --allow-empty
-git -C "${REPO}" worktree add -q "${T}/linked" -b linked 2>/dev/null
-rm -f "${REPO}/.git/hooks/pre-commit"   # prove the worktree call re-installs
-mkdir -p "${T}/linked/scripts/hooks"
-cp "${REPO_ROOT}/scripts/setup-hooks.sh" "${T}/linked/scripts/"
-printf '#!/bin/sh\nexit 0\n' > "${T}/linked/scripts/hooks/pre-commit"
+git -C "${repo}" -c user.email=t@t -c user.name=t commit -qm init --allow-empty
+git -C "${repo}" worktree add -q "${t}/linked" -b linked 2>/dev/null
+rm -f "${repo}/.git/hooks/pre-commit"   # prove the worktree call re-installs
+mkdir -p "${t}/linked/scripts/hooks"
+cp "${repo_root}/scripts/setup-hooks.sh" "${t}/linked/scripts/"
+printf '#!/bin/sh\nexit 0\n' > "${t}/linked/scripts/hooks/pre-commit"
 
-bash "${T}/linked/scripts/setup-hooks.sh" > /dev/null
-expect_file "pre-commit lands in common hooks dir" "${REPO}/.git/hooks/pre-commit" exists
-expect_file "worktree has no private hooks" "${T}/linked/.git/hooks" absent
+bash "${t}/linked/scripts/setup-hooks.sh" > /dev/null
+expect_file "pre-commit lands in common hooks dir" "${repo}/.git/hooks/pre-commit" exists
+expect_file "worktree has no private hooks" "${t}/linked/.git/hooks" absent
 
 echo ""
-printf 'passed: %d  failed: %d\n' "${PASS}" "${FAIL}"
-[[ "${FAIL}" -eq 0 ]]
+printf 'passed: %d  failed: %d\n' "${pass}" "${fail}"
+[[ "${fail}" -eq 0 ]]
