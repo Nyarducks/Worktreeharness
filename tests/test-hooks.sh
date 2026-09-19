@@ -78,10 +78,10 @@ run_matrix() {
   expect_deny  "${tag} codex patch: outside lab"       "${h_codex}/guard-writes-to-worktree.sh" "$(pj_patch "${outside}" "${co}")"
   expect_allow "${tag} codex patch: allowlisted"       "${h_codex}/guard-writes-to-worktree.sh" "$(pj_patch "${ext_a}/f.txt" "${co}")"
 
-  expect_allow "${tag} codex bash: ls"                 "${h_codex}/restrict-to-harness-root.sh" "$(pj_cmd "ls -la" "${co}")"
-  expect_deny  "${tag} codex bash: rm -rf ~"           "${h_codex}/restrict-to-harness-root.sh" "$(pj_cmd "rm -rf ~" "${co}")"
-  expect_deny  "${tag} codex bash: cat /etc/passwd"    "${h_codex}/restrict-to-harness-root.sh" "$(pj_cmd "cat /etc/passwd" "${co}")"
-  expect_allow "${tag} codex bash: allowlisted path"   "${h_codex}/restrict-to-harness-root.sh" "$(pj_cmd "cat ${ext_b}/f.txt" "${co}")"
+  expect_allow "${tag} codex bash: ls"                 "${h_codex}/guard-bash-commands.sh" "$(pj_cmd "ls -la" "${co}")"
+  expect_deny  "${tag} codex bash: rm -rf ~"           "${h_codex}/guard-bash-commands.sh" "$(pj_cmd "rm -rf ~" "${co}")"
+  expect_deny  "${tag} codex bash: cat /etc/passwd"    "${h_codex}/guard-bash-commands.sh" "$(pj_cmd "cat /etc/passwd" "${co}")"
+  expect_allow "${tag} codex bash: allowlisted path"   "${h_codex}/guard-bash-commands.sh" "$(pj_cmd "cat ${ext_b}/f.txt" "${co}")"
 
   # ---- devin (.devin/hooks.v1.json format) ----
   expect_allow "${tag} devin write: inside worktree"   "${h_devin}/guard-writes-to-worktree.sh" "$(pj_file "${inside}" "${co}")"
