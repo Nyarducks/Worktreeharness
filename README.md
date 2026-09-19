@@ -35,7 +35,17 @@ Both `repos/` and `worktree/` are gitignored — they are ephemeral working dire
 | `jq` | Hook input parsing | `sudo apt install jq` / `brew install jq` |
 | `bash` ≥ 4.0 | Script runtime | Pre-installed on most systems; macOS ships bash 3 — upgrade via `brew install bash` |
 | `realpath` | Path normalisation in hooks | Part of GNU coreutils; on macOS install via `brew install coreutils` |
-| [Claude Code](https://claude.ai/code) | AI coding assistant that drives this harness | `npm install -g @anthropic-ai/claude-code` |
+| `herdr` | Workspace/tab/agent orchestration for dispatched workers | Herdr terminal workspace manager — see https://devin.ai |
+| `bwrap` (bubblewrap) | Sandboxed workers — mount-namespace confinement (dispatch fails closed without it; `--no-sandbox` opts out) | `sudo apt install bubblewrap` |
+
+**Optional agent CLIs** — whichever workers you dispatch with `--kind` (at least one needed for `/herdr-dispatch`):
+
+| Agent | Install |
+|---|---|
+| [Claude Code](https://claude.ai/code) | `npm install -g @anthropic-ai/claude-code` |
+| [Devin CLI](https://docs.devin.ai/cli) | https://docs.devin.ai/cli |
+| [Codex CLI](https://github.com/openai/codex) | `npm install -g @openai/codex` |
+| [Antigravity](https://antigravity.google) | https://antigravity.google/download |
 
 After installing `gh`, authenticate once:
 
