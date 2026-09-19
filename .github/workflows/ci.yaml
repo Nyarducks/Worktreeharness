@@ -21,8 +21,14 @@ jobs:
           fetch-depth: 0
       - id: filter
         run: |
+          # workflow_dispatch: every check is in scope, unconditionally
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "manual dispatch on ${GITHUB_REF_NAME}: running all checks"
+            echo "shell=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           # synchronize: only the just-pushed commits (event.before..event.after)
-          # opened/reopened/workflow_dispatch: the whole diff against the base
+          # opened/reopened: the whole diff against the base
           if [[ "${{ github.event.action }}" == "synchronize" ]]; then
             range="${{ github.event.before }}..${{ github.event.after }}"
           else
