@@ -46,14 +46,8 @@ Hook changes must extend `test-hooks.sh` (it simulates each agent's stdin
 JSON protocol). Sandbox changes must extend `test-sandbox.sh`. Any change
 to `scripts/*.sh` must extend the matching `tests/scripts/test-*.sh` —
 stubs for `gh`/`herdr`/`bwrap` live in `tests/scripts/lib.sh`. The
-`scripts/*.sh` → `tests/scripts/test-*.sh` pairing is enforced by the
-`pre-push` hook and the CI `shell-test` job via
-`scripts/check-test-coverage.sh`. CI (`.github/workflows/ci.yaml`) runs
-all suites on PRs that touch `*.sh`, plus a `docs-freshness` gate on
-every PR. Dependabot (`.github/dependabot.yml`) opens weekly PRs for
-GitHub Actions updates — actions track a major tag and runners stay
-pinned to a fixed image so upstream deprecations arrive as reviewable
-PRs, not warnings.
+`scripts/*.sh` → `tests/scripts/test-*.sh` pairing is enforced by
+`scripts/check-test-coverage.sh`.
 
 ## Documentation
 
@@ -80,8 +74,8 @@ Docs are part of every change:
 Docs rot when prose claims drift from code. Three mechanisms prevent it:
 
 - **`sources:` contract** — every design/reference doc *derived from
-  code* lists the files it is derived from. `scripts/check-docs-stale.sh`
-  (CI: `docs-freshness`) fails a PR that changes a source without
+  code* lists the files it is derived from.
+  `scripts/check-docs-stale.sh` fails a PR that changes a source without
   touching its doc, or that leaves a `sources` entry pointing at a
   deleted/renamed path. Keep `sources` as narrow as the doc's actual
   dependencies. Prescriptive docs (conventions like `shell-style.md`)
@@ -90,6 +84,9 @@ Docs rot when prose claims drift from code. Three mechanisms prevent it:
   code-derived facts ("every agent implements …") and embedded counts
   ("28 checks") unless a test asserts them; enumerate the matrix or name
   the exception instead.
+- **Don't restate files** — if reading a config answers it (CI job
+  layout, action versions, runner images, dependabot cadence), prose
+  about it rots. Point at the file or state only the rule behind it.
 - **Root docs carry no `sources:`** — `README.md`/`AGENTS.md`/
   `CONTRIBUTING.md` are reviewed by hand: re-check the quick start and
   the rule list whenever workflow routing or skill behavior changes.
