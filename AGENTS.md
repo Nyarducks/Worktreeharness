@@ -1,80 +1,21 @@
 # AGENTS.md — Worktreeharness
 
-A framework for worktree-driven multi-repository development. Manages base clones under `repos/` and active worktrees under `worktree/`. Supports developing this harness itself and any external GitHub repository.
+Worktree-driven multi-repository development harness.
 
-> **ABSOLUTE RULE — NO EXCEPTIONS**: Before touching ANY file, invoke `/parallel-worktree`. All code changes must happen inside a worktree under `worktree/`. The guard hook enforces this — writes outside `worktree/` are blocked. Do not attempt to bypass it.
+## Rules — always follow
 
-> **Never edit `repos/` directly**: `repos/` holds bare base clones. Always create a worktree via `scripts/create-worktree.sh <owner>/<repo> <branch>` before making any changes.
+1. **Edit only inside `worktree/`** — create a worktree first
+   (`scripts/create-worktree.sh`), never edit `repos/` directly.
+2. **Never commit to `main`** — feature branch + PR. Never approve or
+   merge a PR; the human does.
+3. **Never edit a delegated worktree** — a worktree assigned to a
+   dispatched worker belongs to that worker; send follow-ups to it via
+   herdr instead.
+4. **Keep docs current** — update `docs/design/` in the same commit as any
+   behavior change; record significant decisions as ADRs in `docs/adr/`.
 
-Repository-local hooks enforce the write boundary for file edits and reject read/shell paths outside the harness root. Each agent reads its own config: `.claude/settings.json` (Claude Code), `.codex/hooks.json` (Codex), `.agents/hooks.json` (Antigravity), `.devin/hooks.v1.json` (Devin CLI). Set `ALLOWED_EXT_DIRS` in `.env` (e.g. `~/.claude,/tmp`; read from both the checkout root and the lab root, lists combined) to scope access to specific external directories — access outside the harness root is enabled precisely when this list is non-empty, and only for the listed paths; there is no separate switch to bypass the restriction entirely. Regardless of this setting, recursive `rm` targeting `$HOME`, `/`, or another critical directory is always blocked — see `scripts/lib/rm-guard.sh`.
+## Pointers
 
----
-
-## Directory Layout
-
-```
-Worktreeharness/
-├── repos/<repo-name>/              # Base clone — read-only; never edit directly
-├── worktree/<repo-name>/<branch>/  # Active worktree — all edits happen here
-├── scripts/                        # Harness scripts (setup-repo, create-worktree, etc.)
-├── .agents/                        # Canonical skills + Antigravity hooks/settings
-├── .claude/                        # Claude Code config; skills is a symlink to .agents/skills
-├── .codex/                         # Codex hooks
-└── .devin/                         # Devin CLI hooks (hooks.v1.json)
-```
-
-Both `repos/` and `worktree/` are gitignored.
-
----
-
-## Developing a Repository
-
-### External repo (e.g. owner/SomeRepo)
-
-```bash
-# 1. Import
-REPO_PATH=$(scripts/setup-repo.sh owner/SomeRepo)
-
-# 2. Create worktree
-scripts/create-worktree.sh owner/SomeRepo feat/my-feature
-# → worktree/SomeRepo/feat/my-feature/
-
-# 3. Edit in worktree, then commit and push
-git -C worktree/SomeRepo/feat/my-feature add <files>
-git -C worktree/SomeRepo/feat/my-feature commit -m "feat: ..."
-git -C worktree/SomeRepo/feat/my-feature push -u origin feat/my-feature
-
-# 4. Open PR
-gh pr create --repo owner/SomeRepo --head feat/my-feature --title "..."
-```
-
-### This harness itself
-
-```bash
-# Resolve your GitHub slug from the remote URL
-SLUG=$(git remote get-url origin | sed 's|.*github\.com[:/]\(.*\)\.git|\1|')
-scripts/create-worktree.sh $SLUG feat/improve-scripts
-# → worktree/Worktreeharness/feat/improve-scripts/
-```
-
----
-
-## Git Workflow
-
-- Never commit directly to `main` — always use a feature branch + PR
-- Branch naming: `feat/<feature>`, `fix/<issue>`, `refactor/<scope>`
-- The pre-commit hook blocks direct commits to `main` and commits to already-merged/closed PR branches
-- **Never approve a PR** (`gh pr review --approve`) — approval is always performed by the human
-- **Never merge a PR** (`gh pr merge`) — merging is always performed by the human
-
----
-
-## Skills
-
-| Skill | When to use |
-|---|---|
-| `/parallel-worktree` | Before any code change — sets up or resumes a worktree |
-| `/git-operations` | Branching, committing, PR creation/editing |
-| `/pr-review-fix` | Reviewing a PR and auto-fixing findings |
-| `/setup-harness` | Bootstrapping this framework in a new repo, or adding a new repo to develop |
-| `/herdr-dispatch` | Spawn a separate agent process via herdr bound to a fresh repo worktree — one herdr workspace per repo, one tab per task |
+- How to work here: `CONTRIBUTING.md`
+- Architecture and design docs: `docs/design/`
+- Decision records: `docs/adr/`

@@ -1,30 +1,6 @@
 # Worktreeharness
 
-A Claude Code harness for worktree-driven multi-repository development. All code changes flow through isolated `git worktree` checkouts — the base repository is never edited directly. Claude Code hooks enforce this automatically.
-
----
-
-## How it works
-
-```
-Worktreeharness/
-├── repos/<repo>/          # Base clone — never edited directly
-├── worktree/<repo>/<branch>/  # Active worktree — all edits happen here
-├── scripts/               # Harness management scripts
-├── .agents/               # Canonical skills + Antigravity hooks/settings
-├── .claude/               # Claude Code settings; skills → symlink to .agents/skills
-├── .codex/                # Codex hooks
-└── .devin/                # Devin CLI hooks (hooks.v1.json)
-```
-
-1. `scripts/setup-repo.sh` clones (or fast-forwards) a GitHub repo into `repos/`.
-2. `scripts/create-worktree.sh` branches from `origin/main` and creates an isolated checkout under `worktree/`.
-3. `PreToolUse` hooks block any write outside `worktree/`, ensuring the base clone stays clean.
-4. Work is committed and pushed from the worktree, then a PR is opened against the original repository.
-
-Both `repos/` and `worktree/` are gitignored — they are ephemeral working directories, not project files.
-
----
+A harness for worktree-driven multi-repository development. All code changes flow through isolated `git worktree` checkouts — the base repository is never edited directly. Guard hooks enforce this in-process; dispatched workers run inside a bubblewrap sandbox.
 
 ## Requirements
 
@@ -33,12 +9,12 @@ Both `repos/` and `worktree/` are gitignored — they are ephemeral working dire
 | `git` ≥ 2.5 | Worktree support | `sudo apt install git` / `brew install git` |
 | `gh` (GitHub CLI) | Clone, PR creation, repo auth | https://cli.github.com |
 | `jq` | Hook input parsing | `sudo apt install jq` / `brew install jq` |
-| `bash` ≥ 4.0 | Script runtime | Pre-installed on most systems; macOS ships bash 3 — upgrade via `brew install bash` |
-| `realpath` | Path normalisation in hooks | Part of GNU coreutils; on macOS install via `brew install coreutils` |
-| `herdr` | Workspace/tab/agent orchestration for dispatched workers | Herdr terminal workspace manager — see https://devin.ai |
-| `bwrap` (bubblewrap) | Sandboxed workers — mount-namespace confinement (dispatch fails closed without it; `--no-sandbox` opts out) | `sudo apt install bubblewrap` |
+| `bash` ≥ 4.0 | Script runtime | Pre-installed; macOS ships bash 3 — `brew install bash` |
+| `realpath` | Path normalisation in hooks | GNU coreutils; on macOS `brew install coreutils` |
+| `herdr` | Orchestration for dispatched workers | see https://devin.ai |
+| `bwrap` | Worker sandbox (fail-closed; `--no-sandbox` opts out) | `sudo apt install bubblewrap` |
 
-**Optional agent CLIs** — whichever workers you dispatch with `--kind` (at least one needed for `/herdr-dispatch`):
+**Optional agent CLIs** — at least one needed to dispatch workers (`--kind`):
 
 | Agent | Install | Verified |
 |---|---|---|
@@ -47,185 +23,43 @@ Both `repos/` and `worktree/` are gitignored — they are ephemeral working dire
 | [Codex CLI](https://github.com/openai/codex) | `npm install -g @openai/codex` | - |
 | [Antigravity](https://antigravity.google) | https://antigravity.google/download | ✓ |
 
-After installing `gh`, authenticate once:
-
-```bash
-gh auth login
-```
-
----
-
 ## Setup
-
-### Clone and initialise
 
 ```bash
 gh repo clone <your-org>/Worktreeharness
 cd Worktreeharness
 bash scripts/setup-hooks.sh   # installs the pre-commit hook
+gh auth login                 # once per machine
 ```
 
-### Optional: set the harness root explicitly
-
-If auto-detection fails (e.g. when running scripts from outside the repo), export:
+## Quick start
 
 ```bash
-export WORKTREE_LAB_DIR="$(git rev-parse --show-toplevel)"
-```
-
----
-
-## Usage
-
-### Develop an external repository
-
-```bash
-# 1. Import the repo (clone on first run; pull on subsequent runs)
+# Develop an external repo
 scripts/setup-repo.sh <owner>/<repo>
-
-# 2. Create a worktree on a new feature branch
 scripts/create-worktree.sh <owner>/<repo> feat/<topic>
-#    → worktree/<repo>/feat/<topic>/
+# → worktree/<repo>/feat/<topic>/ — edit, commit, push, open a PR
 
-# 3. Edit files inside the worktree (Claude Code enforces this via hooks)
-#    Read/Edit using the absolute path printed by create-worktree.sh
-
-# 4. Commit from the worktree
-git -C worktree/<repo>/feat/<topic> add <files>
-git -C worktree/<repo>/feat/<topic> commit -m "feat(<scope>): ..."
-
-# 5. Push and open a PR against the original repo
-git -C worktree/<repo>/feat/<topic> push -u origin feat/<topic>
-gh pr create --repo <owner>/<repo> --head feat/<topic> --title "..."
-
-# 6. Clean up after the PR is merged
-git -C repos/<repo> worktree remove ../../worktree/<repo>/feat/<topic>
-git -C repos/<repo> branch -d feat/<topic>
-```
-
-### Develop this harness itself
-
-```bash
-SLUG="$(git remote get-url origin | sed 's|.*github\.com[:/]\(.*\)\.git|\1|')"
-scripts/create-worktree.sh "${SLUG}" feat/<topic>
-#    → worktree/Worktreeharness/feat/<topic>/
-```
-
-Then follow the same commit → push → PR flow above.
-
-### Run multiple tasks in parallel
-
-Create one worktree per independent task. Each has its own branch and working directory but shares `.git` with the base clone.
-
-```bash
-scripts/create-worktree.sh <owner>/<repo> feat/task-a
-scripts/create-worktree.sh <owner>/<repo> feat/task-b
-# Work on both concurrently; the same branch cannot be checked out twice.
-```
-
----
-
-## Skills
-
-Skills live canonically in `.agents/skills/` — Codex, Devin, and Antigravity read that directory natively, and `.claude/skills` is a symlink to it so Claude Code sees the same set. The following slash commands are available when working in this harness:
-
-| Command | Description |
-|---|---|
-| `/parallel-worktree` | Full worktree workflow — import repo, create worktree, implement, commit, PR |
-| `/git-operations` | Branching, committing, PR creation and editing via `gh` |
-| `/pr-review-fix` | Review a PR, post inline comments, auto-fix findings in a worktree |
-| `/setup-harness` | Install this framework into a new repo, or onboard an external repo |
-| `/herdr-dispatch` | Spawn a separate agent process via herdr bound to a fresh repo worktree |
-
----
-
-## Dispatch mode (`/herdr-dispatch`)
-
-`/parallel-worktree` runs work in-process rooted at the harness root, so a target repo's own `.agents/skills` and `AGENTS.md` never load. `scripts/spawn-repo-agent.sh` instead spawns a separate agent process via `herdr`:
-
-```bash
+# Or ask the orchestrator to dispatch a worker agent via herdr
 scripts/spawn-repo-agent.sh <owner>/<repo> -- "<task description>"
-scripts/spawn-repo-agent.sh --kind agy <owner>/<repo> -- "<task description>"
-scripts/spawn-repo-agent.sh --no-sandbox <owner>/<repo> -- "<task description>"
 ```
 
-It creates a collision-free worktree (`worktree/<repo>/task/<uuid>` on branch `task/<uuid>`), reuses or creates the repo's herdr workspace (one workspace per repo, one tab per task), and starts the agent there with the worktree as cwd — so the repo's own skills and conventions apply, and the worker knows nothing about this harness.
+## Documentation
 
-### Worker sandbox
-
-By default the worker runs inside a **bubblewrap mount namespace** (`scripts/lib/sandbox-wrap.sh`) — an OS-level boundary that works for any agent CLI, not an advisory hook. Filesystem permissions granted to the sandboxed worker:
-
-| Path | Access | Why |
-|---|---|---|
-| `/` | read-only | Whole system is visible but unwritable |
-| `/tmp` | tmpfs (ephemeral) | Scratch space; host `/tmp` is hidden — if the worktree itself lives under `/tmp`, `/tmp` is bound rw instead so the worktree isn't orphaned |
-| `$HOME` | tmpfs (ephemeral) | Hides `~/.ssh` keys, other repos, credentials; writes vanish on exit |
-| `worktree/<repo>/task/<uuid>` | read/write | The only project path the worker may modify |
-| `repos/<repo>/.git` (git-common-dir) | read/write | Linked worktrees store index/objects/refs here — required for `git add`/`commit` |
-| `~/.config/herdr` | read/write | Herdr socket + config — needed for `herdr agent rename`/`tab rename` |
-| `~/.config/gh` | read/write | `gh` auth token and CLI state for pushes/PRs |
-| `~/.gitconfig`, `~/.git-credentials`, `~/.netrc` | read-only | Git identity and HTTPS credentials; usable but not modifiable |
-| `~/.ssh/known_hosts`, `~/.ssh/config` | read-only | SSH remotes keep working; **private keys stay hidden** |
-| `$SSH_AUTH_SOCK` | read/write (socket) | ssh-agent signing without exposing key material |
-| Agent binary under `$HOME` (e.g. `~/.local/bin/devin`, `~/.local/bin/herdr`) | read/write bind | Rebound at its PATH location — otherwise the tmpfs'd `$HOME` would hide the CLI itself |
-| Agent config dir (per `--kind`: `~/.claude`/`~/.claude.json`, `~/.config/devin`+`~/.local/share/devin`+`~/.devin`, `~/.gemini`, `~/.codex`) | read/write | The CLI's own session/auth state |
-
-Process isolation: PID/UTS/IPC namespaces are unshared and the sandbox dies with its parent. Network is shared (agents need API/git access) — confinement is filesystem + process only.
-
-Requires `bwrap` on PATH; dispatch fails closed without it. Pass `--no-sandbox` to opt out. Verify locally with `bash tests/test-sandbox.sh`.
-
-Monitoring is pull-based: `herdr agent wait <pane> --until idle` to wait for completion, `herdr agent read <pane>` to inspect output, and `herdr agent prompt <pane> "<follow-up>"` to send more work to the same agent.
-
-Requires the herdr CLI and an active herdr session (`$HERDR_ENV=1`).
-
----
-
-## Guard hooks
-
-The same three `PreToolUse` policies run under every supported agent, each in that agent's own config format:
-
-| Config file | Agent | Tool matchers |
-|---|---|---|
-| `.claude/settings.json` | Claude Code | `Read`, `Edit\|Write`, `Bash` |
-| `.codex/hooks.json` | Codex | `Bash`, `apply_patch` |
-| `.agents/hooks.json` | Antigravity | `view_file`, `replace_file_content\|write_to_file\|multi_replace_file_content`, `run_command` |
-| `.devin/hooks.v1.json` | Devin CLI | `read`, `write\|edit\|notebook_edit\|apply_patch`, `exec` |
-
-| Hook | Effect |
+| Doc | Contents |
 |---|---|
-| `guard-writes-to-worktree.sh` | Denies any write outside `worktree/` (unless the target is under `ALLOWED_EXT_DIRS`) |
-| `restrict-to-repo-root.sh` | Denies reads outside the harness root, `worktree/`, and `repos/` (unless under `ALLOWED_EXT_DIRS`) |
-| `guard-bash-commands.sh` | Blocks dangerous `rm` commands unconditionally, and restricts other paths to the harness root or `ALLOWED_EXT_DIRS` |
+| `docs/design/architecture.md` | Topology, directory layout, roles, dispatch pipeline |
+| `docs/design/orchestration.md` | How to ask the orchestrator to run workers; lifecycle, monitoring, cleanup |
+| `docs/design/sandbox.md` | Worker sandbox permission model |
+| `docs/design/agent-integrations.md` | Per-agent config dirs, guard-hook policies, `ALLOWED_EXT_DIRS` |
+| `docs/design/skills.md` | Skill inventory |
+| `docs/design/scripts.md` | Script reference |
+| `docs/adr/` | Architecture decision records |
+| `CONTRIBUTING.md` | Development rules |
 
-Each agent's scripts live under `<dir>/hooks/` and all share `scripts/lib/rm-guard.sh` for the rm safety net and the `ALLOWED_EXT_DIRS` allowlist logic. No manual activation is needed.
-
-### Allowing access outside the harness root
-
-By default every hook confines Read/Write/Bash access to the harness root (`repos/`, `worktree/`, and the harness's own tracked files). To let commands and file operations reach specific external directories — e.g. Claude Code's own config at `~/.claude`, or scratch files under `/tmp` — copy `.env.sample` to `.env` and set:
-
-```bash
-ALLOWED_EXT_DIRS=~/.claude,/tmp
-```
-
-`.env` is gitignored; this is a local, per-machine setting. Hooks read `.env` from both the checkout root and the lab root (the directory holding `repos/` and `worktree/`), combining the lists — a single `.env` at the lab root covers every checkout. External access is enabled precisely when `ALLOWED_EXT_DIRS` is non-empty, and only for the listed paths — there is no separate flag to bypass the harness-root restriction entirely.
-
-### rm safety net
-
-Independently of `ALLOWED_EXT_DIRS` every hook unconditionally blocks recursive `rm` commands (`rm -rf`, `sudo rm -r`, etc.) whose target resolves to `$HOME`, `/`, an ancestor of `$HOME` (e.g. `/home`), or another critical top-level directory (`/etc`, `/usr`, `/var`, ...), including glob forms like `rm -rf ~/*` that would wipe a directory's contents. This guards against an accidental `rm -rf ~` or `rm -rf /` — especially important when running Claude Code with `--dangerously-skip-permissions`, where hooks are the only remaining safety net.
-
-### Testing the hooks
-
-`tests/test-hooks.sh` simulates each agent's stdin JSON against a sandboxed lab and asserts every hook's allow/deny decision — covering both the split (`<lab>/worktree/<repo>/<branch>`) and unified (checkout = lab root) topologies, plus the `ALLOWED_EXT_DIRS` union and config command resolution:
+## Tests
 
 ```bash
 bash tests/test-hooks.sh
+bash tests/test-sandbox.sh
 ```
-
----
-
-## Git workflow
-
-- **Never commit directly to `main`** — always use a feature branch and open a PR.
-- Branch naming: `feat/<feature>`, `fix/<issue>`, `refactor/<scope>`.
-- The `pre-commit` hook blocks commits to `main` and to branches whose PR is already merged or closed.
-- Always check a PR is still open before pushing additional commits: `gh pr view <branch> --repo <owner>/<repo>`.
