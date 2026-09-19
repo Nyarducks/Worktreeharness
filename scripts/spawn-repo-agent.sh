@@ -10,7 +10,9 @@
 #   3. starts the agent in that tab's root pane with cwd=<worktree>, so the
 #      repo's own CLAUDE.md/.claude/skills load — the worker knows nothing
 #      about this harness
-#   4. submits the task via `herdr agent prompt` (atomic paste+Enter)
+#   4. submits the task via `herdr agent prompt` (atomic paste+Enter); the
+#      prompt asks the worker to rename itself and its tab to a task-derived
+#      slug/title, replacing the placeholder name w-<uuid>
 #
 # Monitoring is pull-based: `herdr agent wait <pane> --until idle` and
 # `herdr agent read <pane>` — workers carry no reporting protocol.
@@ -174,6 +176,8 @@ main() {
   }
 
   pane_id="$(workspace_pane_for "${repo_name}" "${wt}" "${branch//\//-}")"
+  local tab_id
+  tab_id="$(herdr pane get "${pane_id}" | jq -r '.result.pane.tab_id // empty')"
 
   # Pre-trust the worktree so the worker's first-run dialog does not block it.
   ensure_trusted_workspace "${wt}"
@@ -188,11 +192,10 @@ main() {
     devin) agent_flags="--permission-mode dangerous --respect-workspace-trust false" ;;
   esac
 
-  # herdr agent names: [a-z][a-z0-9_-]{0,31}
-  local agent_name
-  agent_name="$(printf '%s' "${repo_name}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9_-]/-/g')"
-  agent_name="w-${agent_name}-${uuid}"
-  agent_name="${agent_name:0:32}"
+  # Placeholder name; the worker renames itself (and its tab) to a task slug
+  # once it reads the prompt — the dispatcher cannot know a meaningful name
+  # before the worker does. herdr agent names: [a-z][a-z0-9_-]{0,31}
+  local agent_name="w-${uuid}"
   # `agent start` is the native path (waits for readiness itself). It can be
   # denied by the calling agent's own permission classifier; `pane run`
   # (typing the launch command into an existing pane) is not, and the agent
@@ -204,9 +207,21 @@ main() {
     fi
   fi
 
+  # The prompt carries a self-naming preamble: the worker renames its agent
+  # and tab to a task-derived slug/title before starting the actual work.
+  local prompt
+  prompt="You are running inside a herdr pane (pane id: ${pane_id}, tab id: ${tab_id:-unknown}).
+
+First, once the task below is clear to you, pick a short lowercase slug for it and rename yourself and your tab:
+  herdr agent rename ${pane_id} <slug>
+  herdr tab rename ${tab_id:-<tab-id>} <short-title>
+Slug rules: starts with a lowercase letter, only [a-z0-9_-], at most 32 chars. Then proceed with the task.
+
+Task: ${task_text}"
+
   # agent prompt submits paste+Enter atomically; --wait --until working
   # confirms the agent picked the task up without blocking on completion.
-  if ! herdr agent prompt "${pane_id}" "${task_text}" \
+  if ! herdr agent prompt "${pane_id}" "${prompt}" \
       --wait --until working --until blocked --timeout 15000; then
     echo "Warning: task submission was not confirmed as started. Check the pane:" >&2
     echo "  herdr agent read ${pane_id} --lines 30" >&2

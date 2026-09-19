@@ -41,11 +41,15 @@ One call does the whole sequence:
 2. `herdr workspace list` finds the workspace labeled `<repo>`; a new tab is
    added to it, or a new workspace is created — one workspace per repo, one
    tab per task.
-3. `herdr agent start <name> --kind <kind> --pane <pane>` launches the agent
-   in that tab's root pane (falls back to `herdr pane run` when the caller's
-   own permission classifier denies `agent start`).
-4. `herdr agent prompt <pane> "<task>" --wait` submits the task atomically
-   and confirms the agent picked it up.
+3. `herdr agent start w-<uuid> --kind <kind> --pane <pane>` launches the
+   agent in that tab's root pane under a placeholder name (falls back to
+   `herdr pane run` when the caller's own permission classifier denies
+   `agent start`).
+4. `herdr agent prompt <pane> "<task>" --wait` submits the task atomically.
+   The prompt embeds a short preamble telling the worker to rename itself
+   (`herdr agent rename <pane> <slug>`) and its tab
+   (`herdr tab rename <tab> <title>`) once it knows the task — names like
+   `w-<repo>-<uuid>` mean nothing, so the worker picks a task slug itself.
 
 The script prints `Dispatched to pane <pane_id> (repo=... branch=...
 worktree=...)` — keep the `pane_id` for monitoring and follow-ups.
@@ -76,3 +80,6 @@ herdr agent prompt "<pane_id>" "<follow-up task>" --wait --timeout 120000
   `devin` is launched with `--respect-workspace-trust false`.
 - Each dispatch creates a fresh worktree and branch; nothing is reused
   across tasks except the repo's herdr workspace itself.
+- The worker starts as `w-<uuid>` and self-renames from the task prompt —
+  if it skipped that step (or the rename failed), fall back to addressing
+  it by pane id, which always works.
