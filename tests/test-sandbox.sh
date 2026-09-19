@@ -86,6 +86,7 @@ out="$(sandbox_wrap_cmd "/some/wt" claude bash)"
 expect_not_grep "missing path not bound" "${out}" "${missing}"
 
 # bwrap missing → rc 3 (fail closed at the call site)
+# PATH override is deliberate — simulates bwrap being absent
 # shellcheck disable=SC2123
 ( PATH="/nonexistent"; sandbox_wrap_cmd "/x" claude bash ) > /dev/null 2>&1
 rc=$?

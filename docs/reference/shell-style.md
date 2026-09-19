@@ -101,7 +101,25 @@ process_item() {
 }
 ```
 
-## 5. Quick Reference Template
+## 5. Lint Annotations
+
+`bash scripts/lint.sh` runs shellcheck over every shell file. Suppress a
+warning only when the flagged pattern is intentional, and always write
+the reason in a comment on the line above the directive — a bare
+`disable=` reads as "nobody checked this".
+
+```bash
+# $path is a jq variable, not shell — single quotes are intentional
+# shellcheck disable=SC2016
+jq '.projects[$path].x = true'
+
+# Prefer `source=` over `disable=SC1090/SC1091` for dynamic sources —
+# it names the file (or /dev/null) and lets -x keep following real ones.
+# shellcheck source=scripts/lib/helper.sh
+source "${script_root}/scripts/lib/helper.sh"
+```
+
+## 6. Quick Reference Template
 
 ```bash
 #!/usr/bin/env bash
