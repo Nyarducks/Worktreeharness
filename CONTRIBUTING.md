@@ -51,8 +51,8 @@ stubs for `gh`/`herdr`/`bwrap` live in `tests/scripts/lib.sh`. The
 `scripts/check-test-coverage.sh`. CI (`.github/workflows/ci.yaml`) runs
 all suites on PRs that touch `*.sh`, plus a `docs-freshness` gate on
 every PR. Dependabot (`.github/dependabot.yml`) opens weekly PRs for
-GitHub Actions updates — actions are pinned to a major (`@v6`) and
-runners to `ubuntu-24.04` so upstream deprecations arrive as reviewable
+GitHub Actions updates — actions track a major tag and runners stay
+pinned to a fixed image so upstream deprecations arrive as reviewable
 PRs, not warnings.
 
 ## Documentation

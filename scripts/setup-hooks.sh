@@ -3,20 +3,19 @@
 # Safe to call from both the main repo and any worktree.
 set -euo pipefail
 
-# Output variables: repo_root, git_common_dir
+# Output variables: base_root, git_common_dir
 resolve_git_dirs() {
   local script_dir="$1"
-  repo_root="$(git -C "${script_dir}" rev-parse --show-toplevel)"
-  git_common_dir="$(git -C "${repo_root}" rev-parse --git-common-dir)"
-  if [[ "${git_common_dir}" != /* ]]; then
-    git_common_dir="${repo_root}/${git_common_dir}"
-  fi
+  git_common_dir="$(git -C "${script_dir}" rev-parse --path-format=absolute --git-common-dir)"
+  # Symlinks point at the base clone's hooks — linking to a worktree's
+  # copy would leave dangling hooks when the worktree is removed.
+  base_root="$(dirname "${git_common_dir}")"
 }
 
 install_hooks() {
   mkdir -p "${git_common_dir}/hooks"
   local hook name
-  for hook in "${repo_root}"/scripts/hooks/*; do
+  for hook in "${base_root}"/scripts/hooks/*; do
     [[ -f "${hook}" ]] || continue
     name="$(basename "${hook}")"
     ln -sf "${hook}" "${git_common_dir}/hooks/${name}"
@@ -28,7 +27,7 @@ main() {
   local script_dir
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-  local repo_root git_common_dir
+  local base_root git_common_dir
   resolve_git_dirs "${script_dir}"
   install_hooks
 }

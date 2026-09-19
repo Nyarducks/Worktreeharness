@@ -28,7 +28,7 @@ A harness for worktree-driven multi-repository development. All code changes flo
 ```bash
 gh repo clone <your-org>/Worktreeharness
 cd Worktreeharness
-bash scripts/setup-hooks.sh   # installs the pre-commit hook
+bash scripts/setup-hooks.sh   # installs the git hooks (symlinks into the common git dir)
 gh auth login                 # once per machine
 ```
 

@@ -47,17 +47,26 @@ add_worktree() {
 
 install_harness_hooks() {
   local repo_path="$1"
-  local hooks_src
-  hooks_src="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/hooks"
-  local hooks_dst="${repo_path}/.git/hooks"
+  local script_dir git_common hooks_src hooks_dst
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  # Symlink to the harness's base clone — a link into this worktree would
+  # dangle once the worktree is removed.
+  git_common="$(git -C "${script_dir}" rev-parse --path-format=absolute --git-common-dir)"
+  hooks_src="$(dirname "${git_common}")/scripts/hooks"
   [[ -d "${hooks_src}" ]] || return 0
+  hooks_dst="$(git -C "${repo_path}" rev-parse --path-format=absolute --git-dir)/hooks"
+  mkdir -p "${hooks_dst}"
+  local hook name dst
   for hook in "${hooks_src}"/*; do
-    local name
     name="$(basename "${hook}")"
-    if [[ ! -f "${hooks_dst}/${name}" ]]; then
-      cp "${hook}" "${hooks_dst}/${name}"
-      chmod +x "${hooks_dst}/${name}"
+    dst="${hooks_dst}/${name}"
+    if [[ -L "${dst}" ]]; then
+      # refresh only links that point at our hooks; foreign links stand
+      [[ "$(readlink "${dst}")" == "${hooks_src}/"* ]] && ln -sf "${hook}" "${dst}"
+    elif [[ ! -e "${dst}" ]]; then
+      ln -sf "${hook}" "${dst}"
     fi
+    # a regular file is the repo's own hook — never clobber it
   done
 }
 

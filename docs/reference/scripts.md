@@ -27,8 +27,10 @@ per-worktree install. Prints the absolute repo path.
 Creates `worktree/<repo>/<name>` based on `origin/main` — on a new branch
 named `<name>` by default, or on a detached HEAD when `--detach` is given
 (used for dispatched task worktrees; no branch is named before the task
-is understood). Calls `setup-repo.sh` internally when the repo is not yet
-imported. Prints the absolute worktree path — use it for all edits.
+is understood). Calls `setup-repo.sh` internally (clone-or-update), then
+symlinks this harness's `scripts/hooks/` into the managed repo's git
+dir — a repo's own hooks are never clobbered. Prints the absolute
+worktree path — use it for all edits.
 
 ### `spawn-repo-agent.sh [--kind <kind>] [--no-sandbox] <[org/]repo> -- <task>`
 
@@ -49,8 +51,9 @@ PRs.
 ### `setup-hooks.sh`
 
 Installs every hook in `scripts/hooks/` as a symlink into the common git
-dir. Safe to run from the base repo or any worktree; `setup-repo.sh`
-invokes it automatically for repos that ship it.
+dir. Links resolve to the base clone's `scripts/hooks/`, so they keep
+working when a worktree is removed; `setup-repo.sh` invokes this
+automatically for repos that ship it.
 
 ### `lint.sh`
 
