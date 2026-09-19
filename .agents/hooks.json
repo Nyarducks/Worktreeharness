@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash -c 'MAIN=$(git worktree list --porcelain 2>/dev/null | grep -m1 \"^worktree \" | cut -d\" \" -f2); [ -z \"$MAIN\" ] && exit 0; HOOK=\"$(dirname \"$(dirname \"$MAIN\")\")/.agents/hooks/restrict-to-repo-root.sh\"; [ -f \"$HOOK\" ] || exit 0; exec bash \"$HOOK\"'",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.agents/hooks/restrict-to-repo-root.sh\"",
             "timeout": 30
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash -c 'MAIN=$(git worktree list --porcelain 2>/dev/null | grep -m1 \"^worktree \" | cut -d\" \" -f2); [ -z \"$MAIN\" ] && exit 0; HOOK=\"$(dirname \"$(dirname \"$MAIN\")\")/.agents/hooks/guard-writes-to-worktree.sh\"; [ -f \"$HOOK\" ] || exit 0; exec bash \"$HOOK\"'",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.agents/hooks/guard-writes-to-worktree.sh\"",
             "timeout": 30
           }
         ]
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash -c 'MAIN=$(git worktree list --porcelain 2>/dev/null | grep -m1 \"^worktree \" | cut -d\" \" -f2); [ -z \"$MAIN\" ] && exit 0; HOOK=\"$(dirname \"$(dirname \"$MAIN\")\")/.agents/hooks/guard-bash-commands.sh\"; [ -f \"$HOOK\" ] || exit 0; exec bash \"$HOOK\"'",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.agents/hooks/guard-bash-commands.sh\"",
             "timeout": 30
           }
         ]

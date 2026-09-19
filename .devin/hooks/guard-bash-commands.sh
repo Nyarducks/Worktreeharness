@@ -1,5 +1,5 @@
 #!/bin/bash
-# PreToolUse hook: Guard Bash commands.
+# PreToolUse hook: Guard exec commands.
 #   1. Unconditional safety net — deny any recursive `rm` that would purge
 #      $HOME, /, or another critical top-level directory, regardless of
 #      ALLOWED_EXT_DIRS. This is the last line of defense against a mistyped
@@ -7,11 +7,12 @@
 #   2. Path restriction — absolute (or ../-relative) paths referenced in the
 #      command must resolve under the harness root, unless they fall under
 #      one of the directories listed in ALLOWED_EXT_DIRS (see .env.sample).
+# Devin CLI variant: emits devin's {"decision":"block"} output format.
 set -uo pipefail
 
 deny() {
   local MSG="$1"
-  jq -n --arg reason "${MSG}" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$reason}}'
+  jq -n --arg reason "${MSG}" '{decision:"block",reason:$reason}'
   exit 0
 }
 
@@ -23,7 +24,7 @@ is_system_path() {
 }
 
 main() {
-  local INPUT COMMAND CWD HARNESS_ROOT
+  local INPUT COMMAND CWD SCRIPT_ROOT HARNESS_ROOT
   INPUT="$(cat)"
   COMMAND="$(jq -r '.tool_input.command // empty' <<< "${INPUT}")"
   [[ -z "${COMMAND}" ]] && exit 0
@@ -32,15 +33,15 @@ main() {
   # SCRIPT_ROOT = the checkout containing this script (scripts/lib/, .env).
   # HARNESS_ROOT = nearest ancestor holding both repos/ and worktree/ — works
   # whether the checkout IS the lab root or sits under <lab>/worktree/<repo>/<branch>.
-  local SCRIPT_ROOT DIR
+  local dir
   SCRIPT_ROOT="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
-  DIR="${SCRIPT_ROOT}"
-  while [[ -n "${DIR}" && "${DIR}" != "/" ]]; do
-    if [[ -d "${DIR}/worktree" && -d "${DIR}/repos" ]]; then
-      HARNESS_ROOT="${DIR}"
+  dir="${SCRIPT_ROOT}"
+  while [[ -n "${dir}" && "${dir}" != "/" ]]; do
+    if [[ -d "${dir}/repos" && -d "${dir}/worktree" ]]; then
+      HARNESS_ROOT="${dir}"
       break
     fi
-    DIR="$(dirname "${DIR}")"
+    dir="$(dirname "${dir}")"
   done
   [[ -z "${HARNESS_ROOT}" ]] && HARNESS_ROOT="${SCRIPT_ROOT}"
   [[ -z "${HARNESS_ROOT}" || ! -d "${HARNESS_ROOT}" ]] && exit 0

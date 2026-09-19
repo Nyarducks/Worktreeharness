@@ -27,15 +27,17 @@ is_system_path() {
 }
 
 main() {
-  local input command cwd harness_root candidate target
+  local input command cwd script_root harness_root candidate target
   input="$(cat)"
   command="$(jq -r '.tool_input.command // empty' <<< "$input")"
   cwd="$(jq -r '.cwd // empty' <<< "$input")"
+  script_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
   harness_root="$(realpath -m "$(resolve_harness_root)")"
   cwd="${cwd:-$harness_root}"
 
+  # scripts/lib/ and .env live in this script's checkout, not at the lab root.
   # shellcheck disable=SC1091
-  source "$harness_root/scripts/lib/rm-guard.sh" 2>/dev/null || true
+  source "$script_root/scripts/lib/rm-guard.sh" 2>/dev/null || true
 
   # Always-on safety net: never allow a recursive rm on $HOME, /, or another
   # critical directory, regardless of ALLOWED_EXT_DIRS.
@@ -54,7 +56,7 @@ main() {
   # root" mode.
   local allowed_dirs=""
   if declare -F load_allowed_ext_dirs > /dev/null; then
-    allowed_dirs="$(load_allowed_ext_dirs "$harness_root")"
+    allowed_dirs="$(load_allowed_ext_dirs "$harness_root"; load_allowed_ext_dirs "$script_root")"
   fi
 
   while IFS= read -r candidate; do

@@ -1,0 +1,65 @@
+name: ci
+
+on:
+  pull_request:
+    # Fires on every PR open/update; the changes job below gates the actual
+    # test run to pushes that touched *.sh or this workflow. `paths:` on the
+    # trigger can't express this — it evaluates the whole PR diff, so a
+    # docs-only push on a branch that contains .sh would still run CI.
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      shell: ${{ steps.filter.outputs.shell }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: filter
+        run: |
+          # synchronize: only the just-pushed commits (event.before..event.after)
+          # opened/reopened: the whole PR diff against the base branch
+          if [[ "${{ github.event.action }}" == "synchronize" ]]; then
+            range="${{ github.event.before }}..${{ github.event.after }}"
+          else
+            git fetch -q origin "${{ github.base_ref }}"
+            range="FETCH_HEAD...HEAD"
+          fi
+          echo "range: ${range}"
+          git diff --name-only "${range}"
+          if git diff --name-only "${range}" | grep -qE '\.sh$|\.github/workflows/'; then
+            echo "shell=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "shell=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  shell-test:
+    needs: changes
+    if: needs.changes.outputs.shell == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install test dependencies
+        run: sudo apt-get update && sudo apt-get install -y bubblewrap jq
+
+      # ubuntu-24.04 runners restrict unprivileged user namespaces via
+      # AppArmor; bwrap needs them.
+      - name: Allow unprivileged user namespaces
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Hook tests
+        run: bash tests/test-hooks.sh
+
+      - name: Sandbox tests
+        run: bash tests/test-sandbox.sh
+
+      - name: Script tests
+        run: |
+          failed=0
+          for t in tests/scripts/test-*.sh; do
+            echo "### ${t}"
+            bash "${t}" || failed=1
+          done
+          exit "${failed}"

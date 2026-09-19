@@ -23,9 +23,10 @@ Use this when you want to create a brand-new repository that uses the worktree-d
 ```bash
 gh repo create <owner>/<new-repo> --private --clone
 cd <new-repo>
-mkdir -p .claude/hooks .claude/skills/git-operations .claude/skills/parallel-worktree \
-          .claude/skills/pr-review-fix .claude/skills/setup-harness \
-          scripts/hooks repos worktree
+mkdir -p .agents/skills/git-operations .agents/skills/parallel-worktree \
+          .agents/skills/pr-review-fix .agents/skills/setup-harness \
+          .claude/hooks .codex/hooks .agents/hooks .devin/hooks \
+          scripts/hooks scripts/lib repos worktree
 ```
 
 ### 1-2. Copy scripts from the harness
@@ -37,54 +38,51 @@ TARGET=/path/to/new-repo
 cp $HARNESS/scripts/setup-repo.sh       $TARGET/scripts/
 cp $HARNESS/scripts/create-worktree.sh  $TARGET/scripts/
 cp $HARNESS/scripts/setup-hooks.sh      $TARGET/scripts/
+cp $HARNESS/scripts/lib/rm-guard.sh     $TARGET/scripts/lib/
 cp $HARNESS/scripts/hooks/pre-commit    $TARGET/scripts/hooks/
-chmod +x $TARGET/scripts/*.sh $TARGET/scripts/hooks/pre-commit
+chmod +x $TARGET/scripts/*.sh $TARGET/scripts/lib/*.sh $TARGET/scripts/hooks/pre-commit
 ```
 
-### 1-3. Copy Claude hooks and settings
+### 1-3. Copy skills and per-agent hook scripts
+
+`.agents/skills` is the canonical skills directory — Codex, Devin, and
+Antigravity read it natively. `.claude/skills` is a symlink to it.
 
 ```bash
-cp $HARNESS/.claude/hooks/guard-writes-to-worktree.sh  $TARGET/.claude/hooks/
-cp $HARNESS/.claude/hooks/restrict-to-repo-root.sh     $TARGET/.claude/hooks/
-chmod +x $TARGET/.claude/hooks/*.sh
+cp $HARNESS/.agents/skills/git-operations/SKILL.md    $TARGET/.agents/skills/git-operations/
+cp $HARNESS/.agents/skills/parallel-worktree/SKILL.md $TARGET/.agents/skills/parallel-worktree/
+cp $HARNESS/.agents/skills/pr-review-fix/SKILL.md     $TARGET/.agents/skills/pr-review-fix/
+cp $HARNESS/.agents/skills/setup-harness/SKILL.md     $TARGET/.agents/skills/setup-harness/
+ln -s ../.agents/skills $TARGET/.claude/skills
 
-cp $HARNESS/.claude/skills/git-operations/SKILL.md    $TARGET/.claude/skills/git-operations/
-cp $HARNESS/.claude/skills/parallel-worktree/SKILL.md $TARGET/.claude/skills/parallel-worktree/
-cp $HARNESS/.claude/skills/pr-review-fix/SKILL.md     $TARGET/.claude/skills/pr-review-fix/
-cp $HARNESS/.claude/skills/setup-harness/SKILL.md     $TARGET/.claude/skills/setup-harness/
+cp $HARNESS/.claude/hooks/*.sh $TARGET/.claude/hooks/
+cp $HARNESS/.codex/hooks/*.sh  $TARGET/.codex/hooks/
+cp $HARNESS/.agents/hooks/*.sh $TARGET/.agents/hooks/
+cp $HARNESS/.devin/hooks/*.sh  $TARGET/.devin/hooks/
+chmod +x $TARGET/.claude/hooks/*.sh $TARGET/.codex/hooks/*.sh \
+         $TARGET/.agents/hooks/*.sh $TARGET/.devin/hooks/*.sh
 ```
 
 ### 1-4. Verify no absolute paths
 
 The copied skill files use `$(git rev-parse --show-toplevel)` for dynamic path resolution and contain no hardcoded absolute paths. No substitution is needed.
 
-### 1-5. Create .claude/settings.json
+### 1-5. Create per-agent hook configs
 
-```json
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Read",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/hooks/restrict-to-repo-root.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/hooks/guard-writes-to-worktree.sh"
-          }
-        ]
-      }
-    ]
-  }
-}
+Each agent reads its own file — they do not conflict:
+
+- `.claude/settings.json` — Claude Code (`"hooks"` key; Claude has no standalone hooks.json)
+- `.codex/hooks.json` — Codex (`"hooks"` key)
+- `.agents/hooks.json` — Antigravity (named hook groups at the top level)
+- `.devin/hooks.v1.json` — Devin CLI (the hooks object is the entire file)
+
+Copy the reference files instead of writing them by hand:
+
+```bash
+cp $HARNESS/.claude/settings.json $TARGET/.claude/
+cp $HARNESS/.codex/hooks.json     $TARGET/.codex/
+cp $HARNESS/.agents/hooks.json    $TARGET/.agents/
+cp $HARNESS/.devin/hooks.v1.json  $TARGET/.devin/
 ```
 
 ### 1-6. Install git hooks
@@ -99,17 +97,24 @@ bash $TARGET/scripts/setup-hooks.sh
 repos/
 tmp/
 worktree/
+.env
 ```
 
-### 1-8. Create CLAUDE.md
+### 1-8. Create AGENTS.md and CLAUDE.md
 
-Write a CLAUDE.md with the project's rules. At minimum include:
+`AGENTS.md` is the canonical rules file — write the project's rules there. At minimum include:
 
 ```markdown
 > **ABSOLUTE RULE**: Before editing ANY file, invoke `/parallel-worktree`.
 > All code changes must happen inside a worktree under `worktree/`.
 > Never edit `repos/` directly.
 > Never use `cd` to navigate into repositories — use `git -C <path>`.
+```
+
+`CLAUDE.md` is a one-line pointer so Claude Code reads the same rules:
+
+```
+@AGENTS.md
 ```
 
 ### 1-9. Commit and push

@@ -18,8 +18,12 @@ is_system_path() {
   esac
 }
 
+# Output variables: SCRIPT_ROOT, HARNESS_ROOT
+# SCRIPT_ROOT = the checkout containing this script (scripts/lib/, .env).
+# HARNESS_ROOT = nearest ancestor holding both repos/ and worktree/.
 resolve_harness_root() {
-  local DIR="$(realpath "$(dirname "$0")" 2>/dev/null)"
+  SCRIPT_ROOT="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
+  local DIR="${SCRIPT_ROOT}"
   while [[ -n "${DIR}" && "${DIR}" != "/" ]]; do
     if [[ -d "${DIR}/worktree" && -d "${DIR}/repos" ]]; then
       HARNESS_ROOT="${DIR}"
@@ -27,11 +31,11 @@ resolve_harness_root() {
     fi
     DIR="$(dirname "${DIR}")"
   done
-  HARNESS_ROOT="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
+  HARNESS_ROOT="${SCRIPT_ROOT}"
 }
 
 main() {
-  local INPUT COMMAND CWD HARNESS_ROOT
+  local INPUT COMMAND CWD SCRIPT_ROOT HARNESS_ROOT
   INPUT="$(cat)"
   COMMAND="$(jq -r '.toolCall.args.CommandLine // empty' <<< "${INPUT}")"
   [[ -z "${COMMAND}" ]] && exit 0
@@ -42,7 +46,7 @@ main() {
   CWD="${CWD:-${HARNESS_ROOT}}"
 
   # shellcheck disable=SC1091
-  source "${HARNESS_ROOT}/scripts/lib/rm-guard.sh" 2>/dev/null || exit 0
+  source "${SCRIPT_ROOT}/scripts/lib/rm-guard.sh" 2>/dev/null || exit 0
 
   # 1) Always-on safety net
   local RM_REASON
@@ -51,7 +55,7 @@ main() {
 
   # 2) Harness-root restriction
   local ALLOWED_DIRS
-  ALLOWED_DIRS="$(load_allowed_ext_dirs "${HARNESS_ROOT}")"
+  ALLOWED_DIRS="$(load_allowed_ext_dirs "${HARNESS_ROOT}"; load_allowed_ext_dirs "${SCRIPT_ROOT}")"
 
   local CANDIDATE TARGET
   while IFS= read -r CANDIDATE; do

@@ -1,0 +1,34 @@
+{
+  "PreToolUse": [
+    {
+      "matcher": "^(read|notebook_read)$",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash \"$(git rev-parse --show-toplevel)/.devin/hooks/restrict-to-repo-root.sh\"",
+          "timeout": 30
+        }
+      ]
+    },
+    {
+      "matcher": "^(write|edit|notebook_edit|apply_patch)$",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash \"$(git rev-parse --show-toplevel)/.devin/hooks/guard-writes-to-worktree.sh\"",
+          "timeout": 30
+        }
+      ]
+    },
+    {
+      "matcher": "^exec$",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash \"$(git rev-parse --show-toplevel)/.devin/hooks/guard-bash-commands.sh\"",
+          "timeout": 30
+        }
+      ]
+    }
+  ]
+}

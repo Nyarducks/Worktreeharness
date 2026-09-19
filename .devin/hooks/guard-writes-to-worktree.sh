@@ -1,32 +1,32 @@
 #!/bin/bash
-# PreToolUse hook: Block Edit/Write outside worktrees (worktree/) — forces all code changes through worktrees
+# PreToolUse hook: Block writes outside worktrees (worktree/) — forces all
+# code changes through worktrees.
+# Devin CLI variant: emits devin's {"decision":"block"} output format.
 set -uo pipefail
 
 deny() {
   local MSG="$1"
-  jq -n --arg reason "${MSG}" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$reason}}'
+  jq -n --arg reason "${MSG}" '{decision:"block",reason:$reason}'
   exit 0
 }
 
 # Output variables: SCRIPT_ROOT, MAIN_REPO
 # SCRIPT_ROOT = the checkout containing this script — scripts/lib/ and .env
 # live there. MAIN_REPO = nearest ancestor holding both repos/ and worktree/
-# (the lab root) — works whether the checkout IS the lab root or sits under
-# <lab>/worktree/<repo>/<branch>. They differ in a split layout.
+# (the lab root). They differ when the checkout sits under
+# <lab>/worktree/<repo>/<branch>.
 resolve_main_repo() {
+  local dir
   SCRIPT_ROOT="$(realpath "$(dirname "$0")/../.." 2>/dev/null)"
-  local DIR="${SCRIPT_ROOT}"
-  while [[ -n "${DIR}" && "${DIR}" != "/" ]]; do
-    if [[ -d "${DIR}/worktree" && -d "${DIR}/repos" ]]; then
-      MAIN_REPO="${DIR}"
+  dir="${SCRIPT_ROOT}"
+  while [[ -n "${dir}" && "${dir}" != "/" ]]; do
+    if [[ -d "${dir}/repos" && -d "${dir}/worktree" ]]; then
+      MAIN_REPO="${dir}"
       return 0
     fi
-    DIR="$(dirname "${DIR}")"
+    dir="$(dirname "${dir}")"
   done
-  MAIN_REPO="${SCRIPT_ROOT}"
-  if [[ -z "${MAIN_REPO}" || ! -d "${MAIN_REPO}" ]]; then
-    deny "Write blocked: could not determine harness root from hook path ($0)."
-  fi
+  deny "Write blocked: could not find a harness root (a directory holding both repos/ and worktree/) above $0."
 }
 
 main() {
