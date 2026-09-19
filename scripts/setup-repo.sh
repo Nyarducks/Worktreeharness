@@ -13,7 +13,7 @@ set -euo pipefail
 
 # Output variables set by parse_repo_arg
 GH_ORG=""
-REPO_NAME=""
+repo_name=""
 
 usage() {
   echo "Usage: $0 <[org/]repo-name>" >&2
@@ -24,82 +24,82 @@ usage() {
 }
 
 parse_repo_arg() {
-  local ARG="$1"
-  if [[ "${ARG}" == */* ]]; then
-    GH_ORG="${ARG%%/*}"
-    REPO_NAME="${ARG##*/}"
+  local arg="$1"
+  if [[ "${arg}" == */* ]]; then
+    GH_ORG="${arg%%/*}"
+    repo_name="${arg##*/}"
   else
     GH_ORG="${GH_ORG:-}"
-    REPO_NAME="${ARG}"
+    repo_name="${arg}"
   fi
 }
 
-# Output variable: LAB_DIR
+# Output variable: lab_dir
 find_lab_dir() {
-  local SCRIPT_DIR="$1"
+  local script_dir="$1"
   if [[ -n "${WORKTREE_LAB_DIR:-}" ]]; then
-    LAB_DIR="${WORKTREE_LAB_DIR}"
+    lab_dir="${WORKTREE_LAB_DIR}"
     return
   fi
-  LAB_DIR="${SCRIPT_DIR}"
-  while [[ "${LAB_DIR}" != "/" && ! -d "${LAB_DIR}/repos" ]]; do
-    LAB_DIR="$(dirname "${LAB_DIR}")"
+  lab_dir="${script_dir}"
+  while [[ "${lab_dir}" != "/" && ! -d "${lab_dir}/repos" ]]; do
+    lab_dir="$(dirname "${lab_dir}")"
   done
-  if [[ ! -d "${LAB_DIR}/repos" ]]; then
-    LAB_DIR="$(dirname "${SCRIPT_DIR}")"
-    mkdir -p "${LAB_DIR}/repos"
+  if [[ ! -d "${lab_dir}/repos" ]]; then
+    lab_dir="$(dirname "${script_dir}")"
+    mkdir -p "${lab_dir}/repos"
   fi
 }
 
 clone_repo() {
-  local REPO_PATH="$1"
+  local repo_path="$1"
   if [[ -z "${GH_ORG}" ]]; then
     echo "Error: cannot determine GitHub org." >&2
     echo "  Use '<org>/<repo>' syntax or set the GH_ORG environment variable." >&2
     exit 1
   fi
-  echo "Cloning ${GH_ORG}/${REPO_NAME} into ${REPO_PATH} ..." >&2
-  gh repo clone "${GH_ORG}/${REPO_NAME}" "${REPO_PATH}" >&2
+  echo "Cloning ${GH_ORG}/${repo_name} into ${repo_path} ..." >&2
+  gh repo clone "${GH_ORG}/${repo_name}" "${repo_path}" >&2
 }
 
 update_repo() {
-  local REPO_PATH="$1"
+  local repo_path="$1"
   if [[ -z "${GH_ORG}" ]]; then
-    GH_ORG="$(git -C "${REPO_PATH}" remote get-url origin \
+    GH_ORG="$(git -C "${repo_path}" remote get-url origin \
       | sed 's|.*github\.com[:/]\([^/]*\)/.*|\1|')"
   fi
-  echo "Updating ${REPO_NAME} ..." >&2
-  git -C "${REPO_PATH}" fetch origin main >&2
+  echo "Updating ${repo_name} ..." >&2
+  git -C "${repo_path}" fetch origin main >&2
   # A bare base clone has no work tree to pull into; the fetch above already
   # refreshed origin/main, which is all create-worktree.sh consumes.
-  if [[ "$(git -C "${REPO_PATH}" rev-parse --is-bare-repository)" == "true" ]]; then
+  if [[ "$(git -C "${repo_path}" rev-parse --is-bare-repository)" == "true" ]]; then
     return
   fi
-  git -C "${REPO_PATH}" pull --ff-only origin main >&2
+  git -C "${repo_path}" pull --ff-only origin main >&2
 }
 
 main() {
   [[ $# -ne 1 ]] && usage
 
-  local SCRIPT_DIR
-  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
   parse_repo_arg "$1"
 
-  local LAB_DIR
-  find_lab_dir "${SCRIPT_DIR}"
+  local lab_dir
+  find_lab_dir "${script_dir}"
 
-  local REPO_PATH="${LAB_DIR}/repos/${REPO_NAME}"
+  local repo_path="${lab_dir}/repos/${repo_name}"
 
   # A base clone is either a normal checkout (.git directory) or a bare
   # repository (HEAD file at the top level).
-  if [[ ! -d "${REPO_PATH}/.git" && ! -f "${REPO_PATH}/HEAD" ]]; then
-    clone_repo "${REPO_PATH}"
+  if [[ ! -d "${repo_path}/.git" && ! -f "${repo_path}/HEAD" ]]; then
+    clone_repo "${repo_path}"
   else
-    update_repo "${REPO_PATH}"
+    update_repo "${repo_path}"
   fi
 
-  echo "${REPO_PATH}"
+  echo "${repo_path}"
 }
 
 main "$@"

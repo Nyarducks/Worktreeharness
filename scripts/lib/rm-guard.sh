@@ -11,7 +11,7 @@
 
 # Absolute top-level directories that must never be the direct target of a
 # recursive rm, regardless of ALLOWED_EXT_DIRS.
-_RM_GUARD_CRITICAL_DIRS=(
+readonly -a _RM_GUARD_CRITICAL_DIRS=(
   /home /Users /root /etc /usr /var /bin /sbin /boot /lib /lib64
   /opt /System /Library /mnt /media /srv
 )
