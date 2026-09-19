@@ -138,7 +138,7 @@ rm_guard_dangerous_reason() {
 load_allowed_ext_dirs() {
   local harness_root="$1"
   if [[ -f "${harness_root}/.env" ]]; then
-    # shellcheck disable=SC1090
+    # .env is optional user config resolved at runtime — nothing to follow.
     # shellcheck source=/dev/null
     source "${harness_root}/.env"
   fi
