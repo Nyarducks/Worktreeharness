@@ -5,7 +5,7 @@ A harness for worktree-driven multi-repository development. All code changes flo
 ## Supports
 
 | OS | Status |
-|---|---|
+|---|:---:|
 | Linux | ✔ |
 | macOS | - |
 | Windows | ✖ |
@@ -13,7 +13,7 @@ A harness for worktree-driven multi-repository development. All code changes flo
 At least one agent CLI is needed to dispatch workers (`--kind`):
 
 | Agent | Status |
-|---|---|
+|---|:---:|
 | [Claude Code](https://claude.ai/code) | - |
 | [Devin CLI](https://docs.devin.ai/cli) | ✔ |
 | [Codex CLI](https://github.com/openai/codex) | - |
