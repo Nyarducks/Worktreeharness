@@ -43,6 +43,12 @@ scripts/spawn-repo-agent.sh --kind devin <owner>/<repo> -- "<task>"
 scripts/spawn-repo-agent.sh --no-sandbox <owner>/<repo> -- "<task>"
 ```
 
+`spawn-repo-agent.sh` is the **only** entry point for other repos — it
+goes all the way from worktree to a spawned, prompted agent. Never run
+`create-worktree.sh` for another repo and stop there: a worktree with no
+worker is a half-finished task. If inputs (task, kind, repo) are
+missing, ask first — then dispatch once.
+
 One call does the whole sequence:
 
 1. `create-worktree.sh --detach` imports/refreshes `repos/<repo>` and

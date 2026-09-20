@@ -63,6 +63,16 @@ chmod +x "${hooks_dir}/pre-push"
 expect_eq "repo-native hook preserved" "$(cat "${hooks_dir}/pre-push")" "#!/bin/sh
 echo repo-own"
 
+# a foreign symlink is left alone — and must not abort the run under
+# set -e (the old `[[ ]] && ln -sf` form returned 1 and killed the script)
+printf '#!/bin/sh\necho foreign\n' > "${lab}/foreign-hook.sh"
+chmod +x "${lab}/foreign-hook.sh"
+rm -f "${hooks_dir}/pre-commit"
+ln -s "${lab}/foreign-hook.sh" "${hooks_dir}/pre-commit"
+out="$(WORKTREE_LAB_DIR="${lab}" "${repo_root}/scripts/create-worktree.sh" --detach owner/TestRepo task/foreign-link)"
+expect_grep "foreign link: run completes" "${out}" "Done."
+expect_eq "foreign link preserved" "$(readlink "${hooks_dir}/pre-commit")" "${lab}/foreign-hook.sh"
+
 echo "== usage =="
 
 WORKTREE_LAB_DIR="${lab}" "${repo_root}/scripts/create-worktree.sh" owner/TestRepo > /dev/null 2>&1

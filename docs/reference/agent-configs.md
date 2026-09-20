@@ -34,7 +34,9 @@ Tool matchers per config:
 Notes:
 
 - `.agents/skills/` is canonical — Codex, Devin, Antigravity read it
-  natively; `.claude/skills` is a symlink (ADR-0005).
+  natively; `.claude/skills` is a symlink (ADR-0005). Dispatching work to
+  other repos lives solely in the `worktree-development` skill —
+  `spawn-repo-agent.sh` is the single entry point (see `orchestration.md`).
 - `AGENTS.md` is canonical; `CLAUDE.md` contains only `@AGENTS.md`.
 - `.agents/hooks.json` collides with nothing — only Antigravity reads
   `.agents/` for hooks.
