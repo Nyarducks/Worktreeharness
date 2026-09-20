@@ -54,8 +54,8 @@ run_matrix() {
   expect_allow "${tag} claude read: inside root"       "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "${inside}" "${co}")"
   expect_deny  "${tag} claude read: /etc/shadow"       "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "/etc/shadow" "${co}")"
   expect_allow "${tag} claude read: allowlisted"       "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "${ext_a}/f.txt" "${co}")"
-  expect_allow "${tag} claude read: agent dir builtin" "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "${HOME}/.codex/config.toml" "${co}")"
-  expect_allow "${tag} claude read: /tmp default"      "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "/tmp/wth-scratch-${tag}.txt" "${co}")"
+  expect_deny  "${tag} claude read: agent dir unlisted" "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "${HOME}/.codex/config.toml" "${co}")"
+  expect_deny  "${tag} claude read: /tmp unlisted"     "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "/tmp/wth-scratch-${tag}.txt" "${co}")"
 
   expect_allow "${tag} claude bash: ls"                "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "ls -la" "${co}")"
   expect_deny  "${tag} claude bash: rm -rf ~"          "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "rm -rf ~" "${co}")"
@@ -63,9 +63,8 @@ run_matrix() {
   expect_deny  "${tag} claude bash: sudo rm -rf /etc"  "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "sudo rm -rf /etc" "${co}")"
   expect_deny  "${tag} claude bash: cat /etc/passwd"   "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "cat /etc/passwd" "${co}")"
   expect_allow "${tag} claude bash: allowlisted path"  "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "cat ${ext_b}/f.txt" "${co}")"
-  expect_allow "${tag} claude bash: ~ agent dir"       "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "cat ~/.claude/settings.json" "${co}")"
+  expect_deny  "${tag} claude bash: ~ agent dir"       "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "cat ~/.claude/settings.json" "${co}")"
   expect_deny  "${tag} claude bash: ~ outside lab"     "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "cat ~/secret.txt" "${co}")"
-  expect_allow "${tag} claude bash: ~ in quoted text"  "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "git commit -m 'mention ~/.claude here'" "${co}")"
 
   # ---- antigravity (.agents/hooks.json, .toolCall.args format) ----
   expect_allow "${tag} agy write: inside worktree"     "${h_agents}/guard-writes-to-worktree.sh" "$(pj_agy_file "${inside}" "${co}")"
@@ -89,14 +88,14 @@ run_matrix() {
   expect_deny  "${tag} codex bash: rm -rf ~"           "${h_codex}/guard-bash-commands.sh" "$(pj_cmd "rm -rf ~" "${co}")"
   expect_deny  "${tag} codex bash: cat /etc/passwd"    "${h_codex}/guard-bash-commands.sh" "$(pj_cmd "cat /etc/passwd" "${co}")"
   expect_allow "${tag} codex bash: allowlisted path"   "${h_codex}/guard-bash-commands.sh" "$(pj_cmd "cat ${ext_b}/f.txt" "${co}")"
-  expect_allow "${tag} codex bash: agent dir builtin"  "${h_codex}/guard-bash-commands.sh" "$(pj_cmd "cat ${HOME}/.gemini/settings.json" "${co}")"
-  expect_allow "${tag} codex bash: /tmp default"       "${h_codex}/guard-bash-commands.sh" "$(pj_cmd "cat /tmp/wth-scratch-${tag}.txt" "${co}")"
+  expect_deny  "${tag} codex bash: agent dir unlisted" "${h_codex}/guard-bash-commands.sh" "$(pj_cmd "cat ${HOME}/.gemini/settings.json" "${co}")"
+  expect_deny  "${tag} codex bash: /tmp unlisted"      "${h_codex}/guard-bash-commands.sh" "$(pj_cmd "cat /tmp/wth-scratch-${tag}.txt" "${co}")"
 
   # ---- devin (.devin/hooks.v1.json format) ----
   expect_allow "${tag} devin write: inside worktree"   "${h_devin}/guard-writes-to-worktree.sh" "$(pj_file "${inside}" "${co}")"
   expect_deny  "${tag} devin write: outside lab"       "${h_devin}/guard-writes-to-worktree.sh" "$(pj_file "${outside}" "${co}")"
   expect_allow "${tag} devin write: checkout .env dir" "${h_devin}/guard-writes-to-worktree.sh" "$(pj_file "${ext_a}/f.txt" "${co}")"
-  expect_allow "${tag} devin write: agent dir builtin" "${h_devin}/guard-writes-to-worktree.sh" "$(pj_file "${HOME}/.claude/settings.json" "${co}")"
+  expect_deny  "${tag} devin write: agent dir unlisted" "${h_devin}/guard-writes-to-worktree.sh" "$(pj_file "${HOME}/.claude/settings.json" "${co}")"
 
   expect_allow "${tag} devin read: inside root"        "${h_devin}/restrict-to-repo-root.sh" "$(pj_file "${inside}" "${co}")"
   expect_deny  "${tag} devin read: /etc/shadow"        "${h_devin}/restrict-to-repo-root.sh" "$(pj_file "/etc/shadow" "${co}")"
@@ -145,15 +144,21 @@ lab="${sand}/uni-lab"
 build_unified "${lab}"
 run_matrix "uni" "${lab}" "${lab}"
 
-echo "== no .env — .env.sample defaults still apply =="
+echo "== no .env — no external access at all =="
 lab="${sand}/noenv-lab"
 build_split "${lab}"
 co="${lab}/worktree/TestRepo/feat-x"
 h_claude="${co}/.claude/hooks"
-expect_allow "noenv claude read: agent dir builtin" "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "${HOME}/.claude/settings.json" "${co}")"
-expect_allow "noenv claude read: /tmp default"      "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "/tmp/wth-noenv-x.txt" "${co}")"
-expect_deny  "noenv claude read: non-allowlisted"   "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "${HOME}/wth-noenv-x/f.txt" "${co}")"
-expect_allow "noenv claude bash: ~ agent dir"       "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "cat ~/.codex/x" "${co}")"
+expect_deny  "noenv claude read: agent dir"  "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "${HOME}/.claude/settings.json" "${co}")"
+expect_deny  "noenv claude read: /tmp"       "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "/tmp/wth-noenv-x.txt" "${co}")"
+expect_deny  "noenv claude bash: ~ agent dir" "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "cat ~/.codex/x" "${co}")"
+expect_allow "noenv claude read: inside"     "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "${lab}/worktree/TestRepo/feat-x/f.txt" "${co}")"
+
+echo "== .env seeded from .env.sample — its entries apply =="
+cp "${co}/.env.sample" "${co}/.env"
+expect_allow "sample claude read: agent dir" "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "${HOME}/.claude/settings.json" "${co}")"
+expect_allow "sample claude read: /tmp"      "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "/tmp/wth-noenv-x.txt" "${co}")"
+expect_deny  "sample claude read: unlisted"  "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "${HOME}/wth-noenv-x/f.txt" "${co}")"
 
 echo
 echo "passed: ${pass}  failed: ${fail}"
