@@ -38,7 +38,8 @@ Notes:
   other repos lives solely in the `worktree-development` skill —
   `spawn-repo-agent.sh` is the single entry point — task text optional;
   an idle spawn still receives a standby prompt carrying the self-naming
-  contract (see `orchestration.md`).
+  contract, and user-facing reports stay natural-language (the
+  orchestrator runs herdr itself). See `orchestration.md`.
 - `AGENTS.md` is canonical; `CLAUDE.md` contains only `@AGENTS.md`.
 - `.agents/hooks.json` collides with nothing — only Antigravity reads
   `.agents/` for hooks.

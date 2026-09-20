@@ -85,6 +85,18 @@ One call does the whole sequence:
 The script prints `Dispatched to pane <pane_id> (repo=... worktree=...)` —
 keep the `pane_id` for monitoring and follow-ups.
 
+## Talking to the user
+
+Users act in natural language — never paste commands into your report
+expecting the user to run them. You are the one who runs herdr; if the
+user wants a task sent, a status check, or a worktree cleaned up, do it.
+Only quote a command when the user explicitly asks how to do it
+themselves.
+
+Report the outcome and offer next steps as options, e.g.: "Worker
+dispatched (pane `w2:p1`, worktree `worktree/R/task/<uuid>`). Send it a
+task, or should it idle?" — not a `herdr agent prompt` snippet.
+
 ## Monitoring (pull model)
 
 Workers are plain agents with no reporting protocol — they just go idle

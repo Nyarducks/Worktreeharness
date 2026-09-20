@@ -74,7 +74,10 @@ Key decisions (see ADR-0003, ADR-0004):
 ## Responsibilities
 
 - **Orchestrator**: workspace and worker lifecycle management, status
-  checks on request. Does not perform the delegated work itself.
+  checks on request. Does not perform the delegated work itself. Reports
+  to the human in natural language — the orchestrator runs every herdr
+  command itself; a command is quoted only when the human asks how to do
+  it by hand.
 - **Worker**: executes the task in its worktree; may use repo-local and
   global skills; cannot access outside its worktree (enforced by the
   sandbox — see [sandbox.md](sandbox.md)).
