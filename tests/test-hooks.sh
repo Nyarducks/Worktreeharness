@@ -145,6 +145,16 @@ lab="${sand}/uni-lab"
 build_unified "${lab}"
 run_matrix "uni" "${lab}" "${lab}"
 
+echo "== no .env — built-in defaults still apply =="
+lab="${sand}/noenv-lab"
+build_split "${lab}"
+co="${lab}/worktree/TestRepo/feat-x"
+h_claude="${co}/.claude/hooks"
+expect_allow "noenv claude read: agent dir builtin" "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "${HOME}/.claude/settings.json" "${co}")"
+expect_allow "noenv claude read: /tmp default"      "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "/tmp/wth-noenv-x.txt" "${co}")"
+expect_deny  "noenv claude read: non-allowlisted"   "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "${HOME}/wth-noenv-x/f.txt" "${co}")"
+expect_allow "noenv claude bash: ~ agent dir"       "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "cat ~/.codex/x" "${co}")"
+
 echo
 echo "passed: ${pass}  failed: ${fail}"
 if [[ ${fail} -gt 0 ]]; then
