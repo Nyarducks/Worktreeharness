@@ -39,11 +39,11 @@ Dispatches a dedicated worker agent via herdr. Creates a collision-free
 task worktree (`worktree/<repo>/task/<uuid>`, detached HEAD at
 `origin/main`), reuses or creates the repo's herdr workspace + tab, and
 launches the agent (sandboxed by default via
-`scripts/lib/sandbox-wrap.sh`). When a task is given it is submitted with
-a self-naming preamble; with no task the worker idles in its worktree and
-is prompted later via `herdr agent prompt <pane> "<task>"`. Prints
-`Dispatched to pane <pane_id>` — keep the pane id for monitoring.
-See `orchestration.md`.
+`scripts/lib/sandbox-wrap.sh`), then submits a prompt: the task plus a
+self-naming preamble, or — with no task — a standby instruction that
+keeps the naming contract until work arrives via
+`herdr agent prompt <pane> "<task>"`. Prints `Dispatched to pane
+<pane_id>` — keep the pane id for monitoring. See `orchestration.md`.
 
 ### `append-pr-log.sh <owner>/<repo> <pr-number> <worktree-path>`
 

@@ -14,11 +14,11 @@
 #      mount namespace (scripts/lib/sandbox-wrap.sh): the filesystem is
 #      read-only except the worktree, the base repo's .git, the herdr socket,
 #      and the agent's own config dirs. --no-sandbox disables it.
-#   4. when a task is given, submits it via `herdr agent prompt` (atomic
-#      paste+Enter) with a preamble asking the worker to rename itself and
-#      its tab to a task-derived slug/title, replacing the placeholder name
-#      w-<uuid>. With no task the worker simply idles in its worktree —
-#      send work later via `herdr agent prompt <pane> "<task>" --wait`.
+#   4. submits a prompt via `herdr agent prompt` (atomic paste+Enter). It
+#      always carries the self-naming contract — rename agent + tab to a
+#      task-derived slug — so names stay meaningful. With a task the worker
+#      starts immediately; with none the prompt is a standby instruction
+#      and the worker idles until `herdr agent prompt <pane> "<task>"`.
 #
 # Monitoring is pull-based: `herdr agent wait <pane> --until idle` and
 # `herdr agent read <pane>` — workers carry no reporting protocol.
@@ -245,12 +245,12 @@ main() {
     fi
   fi
 
-  # The prompt carries a self-naming preamble: the worker renames its agent
-  # and tab to a task-derived slug/title before starting the actual work.
-  # With no task the worker is left idle — prompt it later via
-  # `herdr agent prompt <pane> "<task>"`.
+  # Every spawn sends a prompt carrying the self-naming contract — with a
+  # task the worker renames from it and starts immediately; without one the
+  # prompt is a standby instruction so the contract survives for follow-up
+  # `herdr agent prompt`s (names like w-<uuid> mean nothing otherwise).
+  local prompt
   if [[ -n "${task_text}" ]]; then
-    local prompt
     prompt="You are running inside a herdr pane (pane id: ${pane_id}, tab id: ${tab_id:-unknown}).
 
 First, once the task below is clear to you, pick a short lowercase slug for it and rename yourself and your tab:
@@ -259,19 +259,26 @@ First, once the task below is clear to you, pick a short lowercase slug for it a
 Slug rules: starts with a lowercase letter, only [a-z0-9_-], at most 32 chars. Then proceed with the task.
 
 Task: ${task_text}"
+  else
+    prompt="You are running inside a herdr pane (pane id: ${pane_id}, tab id: ${tab_id:-unknown}) as a standby worker for ${repo_name} (worktree: ${wt}).
 
-    # agent prompt submits paste+Enter atomically; --wait --until working
-    # confirms the agent picked the task up without blocking on completion.
-    if ! herdr agent prompt "${pane_id}" "${prompt}" \
-        --wait --until working --until blocked --timeout 15000; then
-      echo "Warning: task submission was not confirmed as started. Check the pane:" >&2
-      echo "  herdr agent read ${pane_id} --lines 30" >&2
-    fi
+No task is assigned yet — wait for follow-up prompts. When you receive a task, first pick a short lowercase slug for it and rename yourself and your tab:
+  herdr agent rename ${pane_id} <slug>
+  herdr tab rename ${tab_id:-<tab-id>} <short-title>
+Slug rules: starts with a lowercase letter, only [a-z0-9_-], at most 32 chars. For now just acknowledge briefly and make no changes."
+  fi
+
+  # agent prompt submits paste+Enter atomically; --wait --until working
+  # confirms the agent picked the task up without blocking on completion.
+  if ! herdr agent prompt "${pane_id}" "${prompt}" \
+      --wait --until working --until blocked --timeout 15000; then
+    echo "Warning: task submission was not confirmed as started. Check the pane:" >&2
+    echo "  herdr agent read ${pane_id} --lines 30" >&2
   fi
 
   echo "Dispatched to pane ${pane_id} (repo=${repo_name} worktree=${wt})."
   if [[ -z "${task_text}" ]]; then
-    echo "  Idle — send a task with: herdr agent prompt ${pane_id} \"<task>\" --wait"
+    echo "  Idle (standby prompt sent) — send a task with: herdr agent prompt ${pane_id} \"<task>\" --wait"
   fi
 }
 

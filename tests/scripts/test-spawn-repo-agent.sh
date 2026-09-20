@@ -61,7 +61,7 @@ rc=$?
 expect_rc "HERDR_ENV unset -> error" "${rc}" nz
 expect_grep "error message" "${err}" "not running inside a herdr session"
 
-echo "== no task — spawns an idle worker =="
+echo "== no task — spawns an idle worker with a standby prompt =="
 
 : > "${HERDR_STUB_LOG}"
 out="$("${spawn}" owner/SpawnRepo)"
@@ -69,14 +69,16 @@ expect_grep "reports pane" "${out}" "Dispatched to pane pane-1"
 expect_grep "prints idle hint" "${out}" "herdr agent prompt pane-1"
 log="$(cat "${HERDR_STUB_LOG}")"
 expect_grep "agent launched" "${log}" "pane run pane-1 exec bwrap"
-expect_not_grep "no prompt submitted" "${log}" "agent prompt"
+expect_grep "standby prompt submitted" "${log}" "agent prompt pane-1"
+expect_grep "standby keeps rename contract" "${log}" "herdr agent rename pane-1"
+expect_not_grep "no task text in prompt" "${log}" "Task:"
 
 echo "== bare -- with no text also spawns idle =="
 
 : > "${HERDR_STUB_LOG}"
 out="$("${spawn}" owner/SpawnRepo --)"
 expect_grep "reports pane" "${out}" "Dispatched to pane pane-1"
-expect_not_grep "still no prompt" "$(cat "${HERDR_STUB_LOG}")" "agent prompt"
+expect_grep "standby prompt submitted" "$(cat "${HERDR_STUB_LOG}")" "agent prompt pane-1"
 
 echo "== extra args without -- are rejected =="
 
