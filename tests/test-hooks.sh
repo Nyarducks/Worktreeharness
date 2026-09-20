@@ -66,6 +66,25 @@ run_matrix() {
   expect_deny  "${tag} claude bash: ~ agent dir"       "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "cat ~/.claude/settings.json" "${co}")"
   expect_deny  "${tag} claude bash: ~ outside lab"     "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "cat ~/secret.txt" "${co}")"
 
+  # Word-level tokenizer: regex/program arguments are not paths, while real
+  # paths are still caught — including inside $( ) / ` ` / ${ } interiors.
+  expect_allow "${tag} claude bash: sed range expr"    "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "sed -n '/^usage/,/^}/p' f.txt" "${co}")"
+  expect_allow "${tag} claude bash: awk program"       "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "awk '/^skip/ {print \$1}' f.txt" "${co}")"
+  expect_allow "${tag} claude bash: sed s pipe paths"  "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "sed 's|/opt/a|/opt/b|' f.txt" "${co}")"
+  expect_allow "${tag} claude bash: dquote regex"      "${h_claude}/guard-bash-commands.sh" "$(pj_cmd 'sed -n "/^usage/,/^}/p" f.txt' "${co}")"
+  # shellcheck disable=SC2016 # literal command text — must not expand here
+  expect_allow "${tag} claude bash: benign subst"      "${h_claude}/guard-bash-commands.sh" "$(pj_cmd 'echo "id=$(uuidgen)"' "${co}")"
+  # shellcheck disable=SC2016 # literal command text — must not expand here
+  expect_deny  "${tag} claude bash: subst interior"    "${h_claude}/guard-bash-commands.sh" "$(pj_cmd 'x=$(cat /etc/shadow)' "${co}")"
+  # shellcheck disable=SC2016 # literal command text — must not expand here
+  expect_deny  "${tag} claude bash: backtick interior" "${h_claude}/guard-bash-commands.sh" "$(pj_cmd 'echo `cat /etc/hostname`' "${co}")"
+  # shellcheck disable=SC2016 # literal command text — must not expand here
+  expect_deny  "${tag} claude bash: nested subst"      "${h_claude}/guard-bash-commands.sh" "$(pj_cmd 'echo $(echo $(cat /etc/deep))' "${co}")"
+  expect_deny  "${tag} claude bash: redirect target"   "${h_claude}/guard-bash-commands.sh" "$(pj_cmd 'echo hi >/etc/cron.d/evil' "${co}")"
+  expect_deny  "${tag} claude bash: semicolon path"    "${h_claude}/guard-bash-commands.sh" "$(pj_cmd 'true;/etc/x' "${co}")"
+  expect_deny  "${tag} claude bash: glob dir prefix"   "${h_claude}/guard-bash-commands.sh" "$(pj_cmd 'cat /etc/*.conf' "${co}")"
+  expect_deny  "${tag} claude bash: proc uuid"         "${h_claude}/guard-bash-commands.sh" "$(pj_cmd 'cat /proc/sys/kernel/random/uuid' "${co}")"
+
   # ---- antigravity (.agents/hooks.json, .toolCall.args format) ----
   expect_allow "${tag} agy write: inside worktree"     "${h_agents}/guard-writes-to-worktree.sh" "$(pj_agy_file "${inside}" "${co}")"
   expect_deny  "${tag} agy write: outside lab"         "${h_agents}/guard-writes-to-worktree.sh" "$(pj_agy_file "${outside}" "${co}")"

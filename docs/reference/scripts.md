@@ -107,6 +107,16 @@ agy `deny`, devin `block`). The files under `.<agent>/hooks/` are thin
 adapters supplying only the agent kind and stdin JSON field names;
 `hook_main_command` / `hook_main_file` run the full stdin→decision flow.
 
+Command scanning (`hook_lex_candidates` + `hook_emit_candidate`) splits
+the command into shell words with quote/backslash awareness — `|`, `&`,
+`;`, `<`, `>`, `(`, `)`, `$` and `` ` `` also terminate a word — and
+recurses into `$( )`, `${ }` and backtick interiors. A word is a path
+candidate only when it starts like a path (`/`, `~`, `./`, `../`) and
+carries no program/regex metachars; globs check their literal directory
+prefix. This keeps regex arguments (sed ranges, awk programs) from
+masquerading as root-relative paths while real paths — including inside
+substitutions — are still checked.
+
 ### `sandbox-wrap.sh`
 
 Builds the bubblewrap command line that confines a spawned worker to its

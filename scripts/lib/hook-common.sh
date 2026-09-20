@@ -62,6 +62,134 @@ hook_is_system_path() {
   esac
 }
 
+# --- command-word scanning --------------------------------------------------
+#
+# hook_lex_candidates prints the path candidates in a shell command, one per
+# line. Words are split with quote/backslash awareness (a real lexer, not a
+# character sieve), and | & ; < > ( ) $ ` also terminate a word — so a sed
+# expression like '/^usage/,/^}/p' arrives as ONE word instead of shattering
+# into stray "/" and "/p" tokens that look like root-relative paths.
+# $(...), ${...} and backtick interiors are scanned recursively so a real
+# path inside a substitution is still caught.
+#
+# hook_emit_candidate decides whether one word is a path reference. A word
+# containing program/regex metachars (^ , { } ( ) ! \) is an expression, not
+# a path — a leading "/" there is a delimiter, not the filesystem root.
+# Glob metachars (* ? [) keep only the literal directory prefix, since the
+# glob itself cannot be resolved statically.
+
+SUBST_END=0
+
+hook_emit_candidate() {
+  local word="$1" prefix
+  [[ -z "${word}" ]] && return 0
+  # Program/regex metachars: the word is a pattern or expression — skip it
+  # wholesale rather than trusting a path-shaped fragment of it. The pattern
+  # lives in a variable because shellcheck cannot parse a literal ( here.
+  local prog_meta='*[,{}()!^\\]*'
+  # shellcheck disable=SC2053 # glob match is intended — prog_meta is a pattern
+  [[ "${word}" == ${prog_meta} ]] && return 0
+  # Globs: check only the literal prefix before the first glob char.
+  prefix="${word%%[*?[]*}"
+  case "${prefix}" in
+    ""|"/"|"~"|"./"|"../") return 0 ;;  # bare delimiters are not references
+  esac
+  case "${word}" in
+    /*|~*|./*|../*) printf '%s\n' "${prefix}" ;;
+  esac
+}
+
+# hook_scan_subst <cmd> <pos> — <pos> sits on ` or $. Emits candidates found
+# inside `...`, $(...) or ${...} (var defaults can embed paths too), and sets
+# SUBST_END to the index of the closing delimiter (or end of string). A plain
+# $VAR opens no region: SUBST_END stays at <pos> so the caller just steps past
+# the '$' and lets the variable name merge into the next word fragment.
+hook_scan_subst() {
+  local cmd="$1" ch open close
+  local -i i="$2" n=${#cmd} j depth iq_s=0 iq_d=0
+  SUBST_END=${i}
+  if [[ "${cmd:i:1}" == '`' ]]; then
+    for (( j=i+1; j<n; j++ )); do
+      ch="${cmd:j:1}"
+      if [[ "${ch}" == "\\" ]]; then j=$((j + 1)); continue; fi
+      [[ "${ch}" == '`' ]] && break
+    done
+    hook_lex_candidates "${cmd:i+1:j-i-1}"
+    SUBST_END=${j}
+    return 0
+  fi
+  case "${cmd:i+1:1}" in
+    '(') open='(' close=')' ;;
+    '{') open='{' close='}' ;;
+    *) return 0 ;;
+  esac
+  depth=1
+  for (( j=i+2; j<n; j++ )); do
+    ch="${cmd:j:1}"
+    if (( iq_s )); then
+      [[ "${ch}" == "'" ]] && iq_s=0
+      continue
+    fi
+    if (( iq_d )); then
+      [[ "${ch}" == '"' ]] && iq_d=0
+      continue
+    fi
+    case "${ch}" in
+      "'") iq_s=1 ;;
+      '"') iq_d=1 ;;
+      *)
+        if [[ "${ch}" == "${open}" ]]; then
+          depth=$((depth + 1))
+        elif [[ "${ch}" == "${close}" ]]; then
+          depth=$((depth - 1))
+          if (( depth == 0 )); then break; fi
+        fi ;;
+    esac
+  done
+  hook_lex_candidates "${cmd:i+2:j-i-2}"
+  SUBST_END=${j}
+}
+
+hook_lex_candidates() {
+  local cmd="$1" w="" ch
+  local -i i=0 n=${#cmd} in_s=0 in_d=0
+  while (( i < n )); do
+    ch="${cmd:i:1}"
+    if (( in_s )); then
+      if [[ "${ch}" == "'" ]]; then in_s=0; else w+="${ch}"; fi
+      i=$((i + 1))
+      continue
+    fi
+    if (( in_d )); then
+      case "${ch}" in
+        '"') in_d=0 ;;
+        "\\") i=$((i + 1)); if (( i < n )); then w+="${cmd:i:1}"; fi ;;
+        '`'|'$')
+          hook_emit_candidate "${w}"; w=""
+          hook_scan_subst "${cmd}" "${i}"
+          i=${SUBST_END} ;;
+        *) w+="${ch}" ;;
+      esac
+      i=$((i + 1))
+      continue
+    fi
+    case "${ch}" in
+      "'") in_s=1 ;;
+      '"') in_d=1 ;;
+      "\\") i=$((i + 1)); if (( i < n )); then w+="${cmd:i:1}"; fi ;;
+      [[:space:]]|\||\&|\;|\<|\>|\(|\))
+        hook_emit_candidate "${w}"; w="" ;;
+      '`'|'$')
+        hook_emit_candidate "${w}"; w=""
+        hook_scan_subst "${cmd}" "${i}"
+        i=${SUBST_END} ;;
+      *) w+="${ch}" ;;
+    esac
+    i=$((i + 1))
+  done
+  hook_emit_candidate "${w}"
+}
+
 # hook_guard_command <command> <cwd>
 # Prints a deny reason when <command> is a dangerous `rm` or references a
 # path resolving outside the harness root and outside every
@@ -114,10 +242,7 @@ hook_guard_command() {
 
     printf 'Access outside harness root blocked: %s. Use repos/ for base clones and worktree/ for active worktrees, or add this path to ALLOWED_EXT_DIRS in .env.\n' "${target}"
     return 0
-  done < <(
-    tr -c '[:alnum:]_./:+%@=~-' '\n' <<< "${command}" |
-      awk '/^\// || /^\.\.?\// || /^~/'
-  )
+  done < <(hook_lex_candidates "${command}")
 }
 
 # hook_guard_paths <scope:harness|worktree> <rel_base>
