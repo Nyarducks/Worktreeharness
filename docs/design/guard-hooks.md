@@ -30,7 +30,7 @@ stdin JSON fields; the decision logic lives in
 |---|---|
 | `guard-writes-to-worktree.sh` | Denies writes outside `worktree/` (unless allowlisted) |
 | `restrict-to-repo-root.sh` | Denies reads/shell access outside the lab root unless allowlisted |
-| `guard-bash-commands.sh` | Restricts command paths to the lab root or allowlist — `~/` expands to `$HOME` as the shell would; dangerous recursive `rm` always blocked |
+| `guard-bash-commands.sh` | Restricts command paths to the lab root or allowlist — `~/` expands to `$HOME` as the shell would; dangerous recursive `rm` always blocked. Path candidates come from a word-level scan (`hook_lex_candidates`): quotes and escapes are honored, `$( )` / `${ }` / backtick interiors are scanned recursively, words containing regex/program metachars are expressions rather than paths, and globs are checked by their literal directory prefix |
 
 ```mermaid
 flowchart TD
@@ -63,6 +63,12 @@ flowchart TD
 - **Unconditional `rm` net**: recursive deletes of `$HOME`, `/`,
   `/home`, `/etc`, `/usr`, `/var`, … — including `sudo` and glob forms —
   are blocked regardless of the allowlist.
+- **Word-level command scanning** (ADR-0009): command text is lexed into
+  shell words rather than split on a character sieve, so sed/awk program
+  arguments no longer fragment into bogus `/` path candidates. Words
+  carrying regex metachars (`^ , { } ( ) ! \`) are expressions and are
+  skipped whole; `$( )`, `${ }` and backtick interiors are scanned
+  recursively to preserve recall for real paths inside substitutions.
 
 ## Security
 
