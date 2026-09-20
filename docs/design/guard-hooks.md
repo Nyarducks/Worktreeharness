@@ -37,8 +37,8 @@ flowchart TD
     Agent -->|PreToolUse JSON| Hook
     Hook --> R1{"SCRIPT_ROOT<br/>= checkout<br/>(from hook path)"}
     Hook --> R2{"lab root<br/>= ancestor with<br/>repos/ + worktree/"}
-    R1 -->|source hook-common.sh<br/>+ rm-guard.sh,<br/>read checkout .env| Lib
-    R2 -->|policy boundary,<br/>read lab .env| Policy
+    R1 -->|source hook-common.sh<br/>+ rm-guard.sh,<br/>read checkout .env(.sample)| Lib
+    R2 -->|policy boundary,<br/>read lab .env(.sample)| Policy
     Lib --> Decision{"path under<br/>boundary or<br/>allowlisted?"}
     Policy --> Decision
     Decision -->|yes| Allow["exit 0 — allow"]
@@ -54,11 +54,12 @@ flowchart TD
   `$0` is checkout-absolute; the lab root (policy boundary) is the
   nearest ancestor containing `repos/` + `worktree/`. Works in both split
   and unified topologies.
-- **Allowlist**: `load_allowed_ext_dirs` (`rm-guard.sh`) emits a built-in
-  default — `/tmp` plus every supported agent's own config dir — so
-  `.env` only carries user extras (see `.env.sample`); it is the single
-  source of the default. `ALLOWED_EXT_DIRS` is read from both roots'
-  `.env` and combined — one lab-root `.env` covers every checkout.
+- **Allowlist**: `.env.sample` carries the shipped default
+  `ALLOWED_EXT_DIRS` (`/tmp` plus every supported agent's own config
+  dir) — the single source of the default, applied even with no `.env`.
+  `load_allowed_ext_dirs` unions `.env.sample`, `.env`, and an exported
+  `ALLOWED_EXT_DIRS` — a user `.env` can only add, never shadow — and
+  reads from both roots, so one lab-root `.env` covers every checkout.
   External access exists only for listed paths; there is no global
   bypass.
 - **Unconditional `rm` net**: recursive deletes of `$HOME`, `/`,

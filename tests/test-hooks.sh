@@ -145,7 +145,7 @@ lab="${sand}/uni-lab"
 build_unified "${lab}"
 run_matrix "uni" "${lab}" "${lab}"
 
-echo "== no .env — built-in defaults still apply =="
+echo "== no .env — .env.sample defaults still apply =="
 lab="${sand}/noenv-lab"
 build_split "${lab}"
 co="${lab}/worktree/TestRepo/feat-x"

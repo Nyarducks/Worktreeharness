@@ -90,9 +90,10 @@ Run by the `pre-push` git hook and as the last step of the CI
 Shared by every agent guard hook. Provides the unconditional
 dangerous-`rm` blocklist (recursive deletes of `$HOME`, `/`, `/home`,
 `/etc`, `/usr`, `/var`, …, including `sudo` and glob forms) and
-`load_allowed_ext_dirs`, which emits the allowlist — built-in defaults
-(`/tmp` plus every supported agent's own config dir) plus
-`ALLOWED_EXT_DIRS` from a given `.env`.
+`load_allowed_ext_dirs`, which emits the allowlist for a given root:
+`.env.sample` (the shipped default — `/tmp` plus every supported
+agent's own config dir), `.env` (user extras — never shadows the
+default), and an exported `ALLOWED_EXT_DIRS`, all unioned.
 
 ### `hook-common.sh`
 
