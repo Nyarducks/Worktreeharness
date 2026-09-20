@@ -33,15 +33,17 @@ dir — a repo's own hooks (regular files) and foreign symlinks are never
 clobbered or fatal to the run. Prints the absolute worktree path — use
 it for all edits.
 
-### `spawn-repo-agent.sh [--kind <kind>] [--no-sandbox] <[org/]repo> -- <task>`
+### `spawn-repo-agent.sh [--kind <kind>] [--no-sandbox] <[org/]repo> [-- <task>]`
 
-Dispatches a task to a dedicated worker agent via herdr. Creates a
-collision-free task worktree (`worktree/<repo>/task/<uuid>`, detached HEAD
-at `origin/main`), reuses or creates the repo's herdr workspace + tab,
+Dispatches a dedicated worker agent via herdr. Creates a collision-free
+task worktree (`worktree/<repo>/task/<uuid>`, detached HEAD at
+`origin/main`), reuses or creates the repo's herdr workspace + tab, and
 launches the agent (sandboxed by default via
-`scripts/lib/sandbox-wrap.sh`), and submits the task with a self-naming
-preamble. Prints `Dispatched to pane <pane_id>` — keep the pane id for
-monitoring. See `orchestration.md`.
+`scripts/lib/sandbox-wrap.sh`), then submits a prompt: the task plus a
+self-naming preamble, or — with no task — a standby instruction that
+keeps the naming contract until work arrives via
+`herdr agent prompt <pane> "<task>"`. Prints `Dispatched to pane
+<pane_id>` — keep the pane id for monitoring. See `orchestration.md`.
 
 ### `append-pr-log.sh <owner>/<repo> <pr-number> <worktree-path>`
 

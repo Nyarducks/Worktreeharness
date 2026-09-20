@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Usage: spawn-repo-agent.sh [--kind <claude|agy|...>] [--no-sandbox] <[org/]repo> -- <task text...>
+# Usage: spawn-repo-agent.sh [--kind <claude|agy|...>] [--no-sandbox] <[org/]repo> [-- <task text...>]
 #
-# Dispatches a task to a dedicated agent process via herdr:
+# Dispatches a dedicated agent process via herdr:
 #   1. imports/refreshes repos/<repo> and creates a worktree at
 #      worktree/<repo>/task/<uuid> with a detached HEAD at origin/main —
 #      the uuid leaf keeps concurrent dispatches collision-free and no
@@ -14,16 +14,18 @@
 #      mount namespace (scripts/lib/sandbox-wrap.sh): the filesystem is
 #      read-only except the worktree, the base repo's .git, the herdr socket,
 #      and the agent's own config dirs. --no-sandbox disables it.
-#   4. submits the task via `herdr agent prompt` (atomic paste+Enter); the
-#      prompt asks the worker to rename itself and its tab to a task-derived
-#      slug/title, replacing the placeholder name w-<uuid>
+#   4. submits a prompt via `herdr agent prompt` (atomic paste+Enter). It
+#      always carries the self-naming contract — rename agent + tab to a
+#      task-derived slug — so names stay meaningful. With a task the worker
+#      starts immediately; with none the prompt is a standby instruction
+#      and the worker idles until `herdr agent prompt <pane> "<task>"`.
 #
 # Monitoring is pull-based: `herdr agent wait <pane> --until idle` and
 # `herdr agent read <pane>` — workers carry no reporting protocol.
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 [--kind <claude|agy|...>] [--no-sandbox] <[org/]repo> -- <task text...>" >&2
+  echo "Usage: $0 [--kind <claude|agy|...>] [--no-sandbox] <[org/]repo> [-- <task text...>]" >&2
   exit 1
 }
 
@@ -159,13 +161,15 @@ main() {
     esac
   done
 
-  [[ $# -lt 3 ]] && usage
+  [[ $# -lt 1 ]] && usage
   local repo_arg="$1"
   shift
-  [[ "$1" == "--" ]] || usage
-  shift
-  local task_text="$*"
-  [[ -z "${task_text}" ]] && usage
+  local task_text=""
+  if [[ $# -gt 0 ]]; then
+    [[ "$1" == "--" ]] || usage
+    shift
+    task_text="$*"
+  fi
 
   require_herdr
 
@@ -241,10 +245,13 @@ main() {
     fi
   fi
 
-  # The prompt carries a self-naming preamble: the worker renames its agent
-  # and tab to a task-derived slug/title before starting the actual work.
+  # Every spawn sends a prompt carrying the self-naming contract — with a
+  # task the worker renames from it and starts immediately; without one the
+  # prompt is a standby instruction so the contract survives for follow-up
+  # `herdr agent prompt`s (names like w-<uuid> mean nothing otherwise).
   local prompt
-  prompt="You are running inside a herdr pane (pane id: ${pane_id}, tab id: ${tab_id:-unknown}).
+  if [[ -n "${task_text}" ]]; then
+    prompt="You are running inside a herdr pane (pane id: ${pane_id}, tab id: ${tab_id:-unknown}).
 
 First, once the task below is clear to you, pick a short lowercase slug for it and rename yourself and your tab:
   herdr agent rename ${pane_id} <slug>
@@ -252,6 +259,14 @@ First, once the task below is clear to you, pick a short lowercase slug for it a
 Slug rules: starts with a lowercase letter, only [a-z0-9_-], at most 32 chars. Then proceed with the task.
 
 Task: ${task_text}"
+  else
+    prompt="You are running inside a herdr pane (pane id: ${pane_id}, tab id: ${tab_id:-unknown}) as a standby worker for ${repo_name} (worktree: ${wt}).
+
+No task is assigned yet — wait for follow-up prompts. When you receive a task, first pick a short lowercase slug for it and rename yourself and your tab:
+  herdr agent rename ${pane_id} <slug>
+  herdr tab rename ${tab_id:-<tab-id>} <short-title>
+Slug rules: starts with a lowercase letter, only [a-z0-9_-], at most 32 chars. For now just acknowledge briefly and make no changes."
+  fi
 
   # agent prompt submits paste+Enter atomically; --wait --until working
   # confirms the agent picked the task up without blocking on completion.
@@ -262,6 +277,9 @@ Task: ${task_text}"
   fi
 
   echo "Dispatched to pane ${pane_id} (repo=${repo_name} worktree=${wt})."
+  if [[ -z "${task_text}" ]]; then
+    echo "  Idle (standby prompt sent) — send a task with: herdr agent prompt ${pane_id} \"<task>\" --wait"
+  fi
 }
 
 main "$@"

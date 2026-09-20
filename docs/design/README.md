@@ -156,7 +156,7 @@ bash tests/test-sandbox.sh   # bwrap confinement
 
 | Doc | Contents |
 |---|---|
-| [orchestration.md](orchestration.md) | How to ask the orchestrator to run workers — single-call dispatch via `spawn-repo-agent.sh`; lifecycle, monitoring, ownership, cleanup |
+| [orchestration.md](orchestration.md) | How to ask the orchestrator to run workers — single-call dispatch via `spawn-repo-agent.sh` (task optional); lifecycle, monitoring, natural-language reporting, ownership, cleanup |
 | [sandbox.md](sandbox.md) | Worker sandbox permission model — path × access × reason matrix, process isolation, known holes |
 | [guard-hooks.md](guard-hooks.md) | Orchestrator-side `PreToolUse` policies — dual-root resolution, `ALLOWED_EXT_DIRS` allowlist, rm safety net |
 

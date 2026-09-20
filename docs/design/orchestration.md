@@ -31,7 +31,7 @@ sequenceDiagram
     O->>G: create-worktree.sh --detach → worktree/R/task/<uuid><br/>(detached HEAD at origin/main)
     O->>R: workspace get/create (label = repo)<br/>tab create → pane
     O->>R: pane run — bwrap-wrapped agent, cwd=worktree
-    O->>R: agent prompt (task + self-name preamble)
+    O->>R: agent prompt — task + self-name preamble,<br/>or standby contract when no task given
     R->>W: start in sandbox
     W->>R: agent rename / tab rename
     W->>W: implement inside worktree
@@ -63,13 +63,21 @@ Key decisions (see ADR-0003, ADR-0004):
   prompt. The orchestrator never runs `create-worktree.sh` for another
   repo and stops there: a worktree without a worker is a half-finished
   task. Missing inputs are collected *before* dispatch, not after.
+- **The task is optional**: spawning alone is a valid use (pre-warmed
+  standby, interactive steering). With no task the worker still gets a
+  standby prompt carrying only the self-naming contract — rename agent +
+  tab when a real task arrives — so follow-up
+  `herdr agent prompt <pane> "<task>"` keeps names meaningful.
 - **Pull-based monitoring**: workers carry no reporting protocol;
   `herdr agent wait/read/prompt` is the interface.
 
 ## Responsibilities
 
 - **Orchestrator**: workspace and worker lifecycle management, status
-  checks on request. Does not perform the delegated work itself.
+  checks on request. Does not perform the delegated work itself. Reports
+  to the human in natural language — the orchestrator runs every herdr
+  command itself; a command is quoted only when the human asks how to do
+  it by hand.
 - **Worker**: executes the task in its worktree; may use repo-local and
   global skills; cannot access outside its worktree (enforced by the
   sandbox — see [sandbox.md](sandbox.md)).
