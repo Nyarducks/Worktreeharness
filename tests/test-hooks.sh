@@ -28,11 +28,13 @@ run_matrix() {
   local h_devin="${co}/.devin/hooks"
 
   # Targets: an in-zone path under worktree/, and paths outside the lab.
+  # outside/ext_* live under $HOME — /tmp itself is a default allowlist
+  # entry, so a lab-external path must come from elsewhere. None of them
+  # need to exist: the guards only resolve and prefix-match.
   local inside="${lab}/worktree/SomeRepo/feat-y/file.txt"
-  local outside="${sand}/outside-${tag}/evil.txt"
-  local ext_a="${sand}/ext-a-${tag}"   # allowed via checkout .env
-  local ext_b="${sand}/ext-b-${tag}"   # allowed via lab-root .env
-  mkdir -p "${sand}/outside-${tag}" "${ext_a}" "${ext_b}"
+  local outside="${HOME}/wth-outside-${tag}/evil.txt"
+  local ext_a="${HOME}/wth-ext-a-${tag}"   # allowed via checkout .env
+  local ext_b="${HOME}/wth-ext-b-${tag}"   # allowed via lab-root .env
 
   # ALLOWED_EXT_DIRS is honored from both the checkout's .env and the lab
   # root's .env (union). In the unified topology both are the same file.
@@ -53,6 +55,7 @@ run_matrix() {
   expect_deny  "${tag} claude read: /etc/shadow"       "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "/etc/shadow" "${co}")"
   expect_allow "${tag} claude read: allowlisted"       "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "${ext_a}/f.txt" "${co}")"
   expect_allow "${tag} claude read: agent dir builtin" "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "${HOME}/.codex/config.toml" "${co}")"
+  expect_allow "${tag} claude read: /tmp default"      "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "/tmp/wth-scratch-${tag}.txt" "${co}")"
 
   expect_allow "${tag} claude bash: ls"                "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "ls -la" "${co}")"
   expect_deny  "${tag} claude bash: rm -rf ~"          "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "rm -rf ~" "${co}")"
@@ -87,6 +90,7 @@ run_matrix() {
   expect_deny  "${tag} codex bash: cat /etc/passwd"    "${h_codex}/guard-bash-commands.sh" "$(pj_cmd "cat /etc/passwd" "${co}")"
   expect_allow "${tag} codex bash: allowlisted path"   "${h_codex}/guard-bash-commands.sh" "$(pj_cmd "cat ${ext_b}/f.txt" "${co}")"
   expect_allow "${tag} codex bash: agent dir builtin"  "${h_codex}/guard-bash-commands.sh" "$(pj_cmd "cat ${HOME}/.gemini/settings.json" "${co}")"
+  expect_allow "${tag} codex bash: /tmp default"       "${h_codex}/guard-bash-commands.sh" "$(pj_cmd "cat /tmp/wth-scratch-${tag}.txt" "${co}")"
 
   # ---- devin (.devin/hooks.v1.json format) ----
   expect_allow "${tag} devin write: inside worktree"   "${h_devin}/guard-writes-to-worktree.sh" "$(pj_file "${inside}" "${co}")"

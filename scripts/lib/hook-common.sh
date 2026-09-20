@@ -53,25 +53,6 @@ hook_deny_json() {
   esac
 }
 
-# known_agent_dirs — config dirs of the supported agent CLIs. Always
-# allowed so an agent can reach its own settings/skills; single source —
-# extend here when a new agent kind is added.
-known_agent_dirs() {
-  [[ -n "${HOME:-}" ]] || return 0
-  printf '%s\n' "${HOME}/.claude" "${HOME}/.codex" "${HOME}/.config/devin" "${HOME}/.gemini"
-}
-
-# hook_allowed_dirs <harness_root> <script_root> — the effective
-# allowlist: built-in agent config dirs plus ALLOWED_EXT_DIRS read from
-# both roots' .env files.
-hook_allowed_dirs() {
-  known_agent_dirs
-  if declare -F load_allowed_ext_dirs > /dev/null; then
-    load_allowed_ext_dirs "$1"
-    load_allowed_ext_dirs "$2"
-  fi
-}
-
 # Commands routinely reference interpreter/runtime paths that are not a
 # filesystem escape (e.g. the binary being exec'd under /usr/bin).
 hook_is_system_path() {
@@ -104,8 +85,10 @@ hook_guard_command() {
   fi
 
   # 2) Harness-root restriction, with the allowlist as the escape hatch.
-  local allowed_dirs
-  allowed_dirs="$(hook_allowed_dirs "${harness_root}" "${script_root}")"
+  local allowed_dirs=""
+  if declare -F load_allowed_ext_dirs > /dev/null; then
+    allowed_dirs="$(load_allowed_ext_dirs "${harness_root}"; load_allowed_ext_dirs "${script_root}")"
+  fi
 
   local candidate target
   while IFS= read -r candidate; do
@@ -158,8 +141,10 @@ hook_guard_paths() {
   local root_dir="${harness_root}"
   [[ "${scope}" == "worktree" ]] && root_dir="${harness_root}/worktree"
 
-  local allowed_dirs
-  allowed_dirs="$(hook_allowed_dirs "${harness_root}" "${script_root}")"
+  local allowed_dirs=""
+  if declare -F load_allowed_ext_dirs > /dev/null; then
+    allowed_dirs="$(load_allowed_ext_dirs "${harness_root}"; load_allowed_ext_dirs "${script_root}")"
+  fi
 
   local candidate target
   while IFS= read -r candidate; do

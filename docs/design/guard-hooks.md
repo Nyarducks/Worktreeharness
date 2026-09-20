@@ -54,12 +54,13 @@ flowchart TD
   `$0` is checkout-absolute; the lab root (policy boundary) is the
   nearest ancestor containing `repos/` + `worktree/`. Works in both split
   and unified topologies.
-- **Allowlist**: every supported agent's own config dir is always
-  allowed — `known_agent_dirs` in `hook-common.sh` is the single source,
-  so `.env` only carries user extras (see `.env.sample`).
-  `ALLOWED_EXT_DIRS` is read from both roots' `.env` and combined — one
-  lab-root `.env` covers every checkout. External access exists only for
-  listed paths; there is no global bypass.
+- **Allowlist**: `load_allowed_ext_dirs` (`rm-guard.sh`) emits a built-in
+  default — `/tmp` plus every supported agent's own config dir — so
+  `.env` only carries user extras (see `.env.sample`); it is the single
+  source of the default. `ALLOWED_EXT_DIRS` is read from both roots'
+  `.env` and combined — one lab-root `.env` covers every checkout.
+  External access exists only for listed paths; there is no global
+  bypass.
 - **Unconditional `rm` net**: recursive deletes of `$HOME`, `/`,
   `/home`, `/etc`, `/usr`, `/var`, … — including `sudo` and glob forms —
   are blocked regardless of the allowlist.

@@ -132,9 +132,11 @@ rm_guard_dangerous_reason() {
 }
 
 # load_allowed_ext_dirs <harness_root>
-# Sources <harness_root>/.env if present, then prints each normalized entry
-# of ALLOWED_EXT_DIRS (comma or colon separated, ~ expansion supported) on
-# its own line.
+# Sources <harness_root>/.env if present, then prints each normalized
+# allowlist entry on its own line: the built-in defaults (/tmp and every
+# supported agent's own config dir — single source; extend the list here
+# when a new agent kind is added) plus ALLOWED_EXT_DIRS entries (comma or
+# colon separated, ~ expansion supported).
 load_allowed_ext_dirs() {
   local harness_root="$1"
   if [[ -f "${harness_root}/.env" ]]; then
@@ -142,10 +144,15 @@ load_allowed_ext_dirs() {
     # shellcheck source=/dev/null
     source "${harness_root}/.env"
   fi
-  [[ -z "${ALLOWED_EXT_DIRS:-}" ]] && return 0
+
+  local dirs="/tmp"
+  if [[ -n "${HOME:-}" ]]; then
+    dirs="${dirs},${HOME}/.claude,${HOME}/.codex,${HOME}/.config/devin,${HOME}/.gemini"
+  fi
+  [[ -n "${ALLOWED_EXT_DIRS:-}" ]] && dirs="${dirs},${ALLOWED_EXT_DIRS}"
 
   local -a entries=()
-  IFS=',:' read -ra entries <<< "${ALLOWED_EXT_DIRS}"
+  IFS=',:' read -ra entries <<< "${dirs}"
   local entry expanded
   for entry in "${entries[@]}"; do
     entry="$(echo "${entry}" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"

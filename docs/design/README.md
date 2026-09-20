@@ -158,7 +158,7 @@ bash tests/test-sandbox.sh   # bwrap confinement
 |---|---|
 | [orchestration.md](orchestration.md) | How to ask the orchestrator to run workers; lifecycle, monitoring, ownership, cleanup |
 | [sandbox.md](sandbox.md) | Worker sandbox permission model — path × access × reason matrix, process isolation, known holes |
-| [guard-hooks.md](guard-hooks.md) | Orchestrator-side `PreToolUse` policies — dual-root resolution, allowlist (built-in agent dirs + `ALLOWED_EXT_DIRS`), rm safety net |
+| [guard-hooks.md](guard-hooks.md) | Orchestrator-side `PreToolUse` policies — dual-root resolution, allowlist (built-in defaults + `ALLOWED_EXT_DIRS`), rm safety net |
 
 Fact inventories (config tables, script/skill lists) live in
 [../reference/](../reference/). Decision records live in
