@@ -58,6 +58,11 @@ Key decisions (see ADR-0003, ADR-0004):
   repository, the orchestrator asks the user through its ask-question
   tool (`AskUserQuestion`/`ask_user_question`/`ask_question` — the name
   varies per agent) rather than defaulting silently (ADR-0008).
+- **Dispatch is a single call**: `spawn-repo-agent.sh` is the only entry
+  point and runs the whole sequence — worktree, tab, spawned agent,
+  prompt. The orchestrator never runs `create-worktree.sh` for another
+  repo and stops there: a worktree without a worker is a half-finished
+  task. Missing inputs are collected *before* dispatch, not after.
 - **Pull-based monitoring**: workers carry no reporting protocol;
   `herdr agent wait/read/prompt` is the interface.
 

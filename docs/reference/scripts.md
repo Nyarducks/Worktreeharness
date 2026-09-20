@@ -29,8 +29,9 @@ named `<name>` by default, or on a detached HEAD when `--detach` is given
 (used for dispatched task worktrees; no branch is named before the task
 is understood). Calls `setup-repo.sh` internally (clone-or-update), then
 symlinks this harness's `scripts/hooks/` into the managed repo's git
-dir — a repo's own hooks are never clobbered. Prints the absolute
-worktree path — use it for all edits.
+dir — a repo's own hooks (regular files) and foreign symlinks are never
+clobbered or fatal to the run. Prints the absolute worktree path — use
+it for all edits.
 
 ### `spawn-repo-agent.sh [--kind <kind>] [--no-sandbox] <[org/]repo> -- <task>`
 

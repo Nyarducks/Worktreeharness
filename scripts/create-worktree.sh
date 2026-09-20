@@ -62,7 +62,9 @@ install_harness_hooks() {
     dst="${hooks_dst}/${name}"
     if [[ -L "${dst}" ]]; then
       # refresh only links that point at our hooks; foreign links stand
-      [[ "$(readlink "${dst}")" == "${hooks_src}/"* ]] && ln -sf "${hook}" "${dst}"
+      if [[ "$(readlink "${dst}")" == "${hooks_src}/"* ]]; then
+        ln -sf "${hook}" "${dst}"
+      fi
     elif [[ ! -e "${dst}" ]]; then
       ln -sf "${hook}" "${dst}"
     fi
