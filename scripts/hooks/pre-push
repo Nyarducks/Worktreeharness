@@ -31,6 +31,12 @@ if command -v gh &>/dev/null; then
     fi
 fi
 
+# --- docs freshness gate (fires only in repos shipping the check) ---
+docs_check="${repo_root}/scripts/check-docs-stale.sh"
+if [[ -f "${docs_check}" ]]; then
+    bash "${docs_check}"
+fi
+
 # --- test coverage gate (fires only in repos shipping the check) ---
 coverage_check="${repo_root}/scripts/check-test-coverage.sh"
 if [[ -f "${coverage_check}" ]]; then

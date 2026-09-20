@@ -81,7 +81,7 @@ Run by the `pre-push` git hook and as the last step of the CI
 | Hook | Behavior |
 |---|---|
 | `pre-commit` | Blocks commits to `main` and to branches whose PR is already merged/closed |
-| `pre-push` | PR-workflow reminders; blocks the push when `scripts/check-test-coverage.sh` exists and reports a script without a test |
+| `pre-push` | PR-workflow reminders; runs the repo's `scripts/check-docs-stale.sh` and `scripts/check-test-coverage.sh` when present, blocking the push on failure |
 
 ## scripts/lib/
 
@@ -90,15 +90,16 @@ Run by the `pre-push` git hook and as the last step of the CI
 Shared by every agent guard hook. Provides the unconditional
 dangerous-`rm` blocklist (recursive deletes of `$HOME`, `/`, `/home`,
 `/etc`, `/usr`, `/var`, …, including `sudo` and glob forms) and
-`load_allowed_ext_dirs`, which reads `ALLOWED_EXT_DIRS` from a given `.env`.
+`load_allowed_ext_dirs`, which reads `ALLOWED_EXT_DIRS` from a given
+`.env` — no `.env` means an empty list.
 
 ### `hook-common.sh`
 
 Shared core for the per-agent `PreToolUse` guard hooks. Resolves the
 script root (from the hook path) and the harness root (walk-up to the
 nearest `repos/` + `worktree/` ancestor), runs the command-token and
-path-list guard checks, unions `ALLOWED_EXT_DIRS` from both roots, and
-emits each agent kind's deny JSON (claude/codex `permissionDecision`,
+path-list guard checks, unions `ALLOWED_EXT_DIRS` from both roots'
+`.env`, and emits each agent kind's deny JSON (claude/codex `permissionDecision`,
 agy `deny`, devin `block`). The files under `.<agent>/hooks/` are thin
 adapters supplying only the agent kind and stdin JSON field names;
 `hook_main_command` / `hook_main_file` run the full stdin→decision flow.

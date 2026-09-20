@@ -84,7 +84,7 @@ hook_guard_command() {
     return 0
   fi
 
-  # 2) Harness-root restriction, with ALLOWED_EXT_DIRS as the escape hatch.
+  # 2) Harness-root restriction, with the allowlist as the escape hatch.
   local allowed_dirs=""
   if declare -F load_allowed_ext_dirs > /dev/null; then
     allowed_dirs="$(load_allowed_ext_dirs "${harness_root}"; load_allowed_ext_dirs "${script_root}")"
@@ -93,8 +93,15 @@ hook_guard_command() {
   local candidate target
   while IFS= read -r candidate; do
     [[ -z "${candidate}" ]] && continue
+    # shellcheck disable=SC2088 # "~" tokens are literal matches, expanded manually below
     if [[ "${candidate}" = /* ]]; then
       target="$(realpath -m "${candidate}")"
+    elif [[ "${candidate}" == "~/"* || "${candidate}" == "~" ]]; then
+      # ~ and ~/x expand to $HOME, exactly like the shell would
+      target="$(realpath -m "${HOME:-/}${candidate#\~}")"
+    elif [[ "${candidate}" == "~"* ]]; then
+      # ~user form cannot be resolved statically — it is outside anyway
+      target="${candidate}"
     else
       target="$(realpath -m "${cwd}/${candidate}")"
     fi
@@ -108,8 +115,8 @@ hook_guard_command() {
     printf 'Access outside harness root blocked: %s. Use repos/ for base clones and worktree/ for active worktrees, or add this path to ALLOWED_EXT_DIRS in .env.\n' "${target}"
     return 0
   done < <(
-    tr -c '[:alnum:]_./:+%@=-' '\n' <<< "${command}" |
-      awk '/^\// || /^\.\.?\//'
+    tr -c '[:alnum:]_./:+%@=~-' '\n' <<< "${command}" |
+      awk '/^\// || /^\.\.?\// || /^~/'
   )
 }
 

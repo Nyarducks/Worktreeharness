@@ -134,7 +134,9 @@ rm_guard_dangerous_reason() {
 # load_allowed_ext_dirs <harness_root>
 # Sources <harness_root>/.env if present, then prints each normalized entry
 # of ALLOWED_EXT_DIRS (comma or colon separated, ~ expansion supported) on
-# its own line.
+# its own line. No .env is equivalent to an empty list — nothing outside
+# the boundary is allowed until the user opts in (.env.sample is a
+# copy-ready template only, never read by the hooks).
 load_allowed_ext_dirs() {
   local harness_root="$1"
   if [[ -f "${harness_root}/.env" ]]; then

@@ -85,6 +85,7 @@ install_hooks() {
   cp "${repo_root}/.devin/hooks.v1.json"    "${co}/.devin/"
   mkdir -p "${co}/scripts"
   cp -R "${repo_root}/scripts/lib" "${co}/scripts/"
+  cp "${repo_root}/.env.sample" "${co}/"   # ships the default allowlist
 }
 
 # build_split <lab> — <lab>/{repos,worktree}/ with a real linked-worktree

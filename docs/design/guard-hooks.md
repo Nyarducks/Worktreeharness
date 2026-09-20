@@ -5,7 +5,7 @@ description: The repo-local PreToolUse policies that confine the orchestrator �
 status: current
 last_modified: 2026-09-20
 tags: [hooks, security, agents]
-sources: [scripts/lib/hook-common.sh, scripts/lib/rm-guard.sh, .claude/settings.json, .codex/hooks.json, .agents/hooks.json, .devin/hooks.v1.json]
+sources: [scripts/lib/hook-common.sh, scripts/lib/rm-guard.sh, .env.sample, .claude/settings.json, .codex/hooks.json, .agents/hooks.json, .devin/hooks.v1.json]
 ---
 
 # Guard Hooks
@@ -30,7 +30,7 @@ stdin JSON fields; the decision logic lives in
 |---|---|
 | `guard-writes-to-worktree.sh` | Denies writes outside `worktree/` (unless allowlisted) |
 | `restrict-to-repo-root.sh` | Denies reads/shell access outside the lab root unless allowlisted |
-| `guard-bash-commands.sh` | Restricts command paths to the lab root or allowlist; dangerous recursive `rm` always blocked |
+| `guard-bash-commands.sh` | Restricts command paths to the lab root or allowlist — `~/` expands to `$HOME` as the shell would; dangerous recursive `rm` always blocked |
 
 ```mermaid
 flowchart TD
@@ -39,7 +39,7 @@ flowchart TD
     Hook --> R2{"lab root<br/>= ancestor with<br/>repos/ + worktree/"}
     R1 -->|source hook-common.sh<br/>+ rm-guard.sh,<br/>read checkout .env| Lib
     R2 -->|policy boundary,<br/>read lab .env| Policy
-    Lib --> Decision{"path under<br/>boundary or<br/>ALLOWED_EXT_DIRS?"}
+    Lib --> Decision{"path under<br/>boundary or<br/>allowlisted?"}
     Policy --> Decision
     Decision -->|yes| Allow["exit 0 — allow"]
     Decision -->|no| Deny["deny / block"]
@@ -54,8 +54,11 @@ flowchart TD
   `$0` is checkout-absolute; the lab root (policy boundary) is the
   nearest ancestor containing `repos/` + `worktree/`. Works in both split
   and unified topologies.
-- **`.env` union**: `ALLOWED_EXT_DIRS` is read from both roots and
-  combined — one lab-root `.env` covers every checkout. External access
+- **Allowlist**: `ALLOWED_EXT_DIRS` is read from both roots' `.env` and
+  combined — one lab-root `.env` covers every checkout. No `.env` means
+  no external access, exactly like an empty list — `.env.sample` is a
+  copy-ready template (with `/tmp` plus the agents' config dirs as a
+  suggested starting point), never read by the hooks. External access
   exists only for listed paths; there is no global bypass.
 - **Unconditional `rm` net**: recursive deletes of `$HOME`, `/`,
   `/home`, `/etc`, `/usr`, `/var`, … — including `sudo` and glob forms —
@@ -71,6 +74,6 @@ stop orchestrator accidents, not attacks.
 ## Testing
 
 `tests/test-hooks.sh` simulates each agent's stdin JSON protocol against
-sandboxed labs (both topologies), asserting allow/deny, the
-`ALLOWED_EXT_DIRS` union, and that each config's `command` actually
-resolves and fires.
+sandboxed labs (both topologies), asserting allow/deny, the built-in
+agent dirs plus `ALLOWED_EXT_DIRS` union, and that each config's
+`command` actually resolves and fires.
