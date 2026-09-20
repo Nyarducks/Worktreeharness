@@ -31,7 +31,7 @@ sequenceDiagram
     O->>G: create-worktree.sh --detach → worktree/R/task/<uuid><br/>(detached HEAD at origin/main)
     O->>R: workspace get/create (label = repo)<br/>tab create → pane
     O->>R: pane run — bwrap-wrapped agent, cwd=worktree
-    O->>R: agent prompt (task + self-name preamble)
+    O->>R: agent prompt (task + self-name preamble)<br/>— skipped when no task given: worker idles
     R->>W: start in sandbox
     W->>R: agent rename / tab rename
     W->>W: implement inside worktree
@@ -63,6 +63,11 @@ Key decisions (see ADR-0003, ADR-0004):
   prompt. The orchestrator never runs `create-worktree.sh` for another
   repo and stops there: a worktree without a worker is a half-finished
   task. Missing inputs are collected *before* dispatch, not after.
+- **The task is optional**: with no task text the worker spawns idle in
+  its worktree — spawning alone is a valid use (pre-warmed standby,
+  interactive steering). Work is sent later via
+  `herdr agent prompt <pane> "<task>"`; the self-naming preamble only
+  rides along when a task is submitted at spawn time.
 - **Pull-based monitoring**: workers carry no reporting protocol;
   `herdr agent wait/read/prompt` is the interface.
 

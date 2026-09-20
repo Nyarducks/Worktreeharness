@@ -41,7 +41,13 @@ scripts/spawn-repo-agent.sh <[owner/]repo> -- "<task>"
 scripts/spawn-repo-agent.sh --kind agy <owner>/<repo> -- "<task>"
 scripts/spawn-repo-agent.sh --kind devin <owner>/<repo> -- "<task>"
 scripts/spawn-repo-agent.sh --no-sandbox <owner>/<repo> -- "<task>"
+scripts/spawn-repo-agent.sh <[owner/]repo>          # spawn only — worker idles
 ```
+
+The task is optional: omitting it spawns an idle worker in a fresh
+worktree — prompt it later with `herdr agent prompt <pane> "<task>"`
+(the self-naming preamble only rides along when a task is given at
+spawn).
 
 `spawn-repo-agent.sh` is the **only** entry point for other repos — it
 goes all the way from worktree to a spawned, prompted agent. Never run

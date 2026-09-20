@@ -61,10 +61,27 @@ rc=$?
 expect_rc "HERDR_ENV unset -> error" "${rc}" nz
 expect_grep "error message" "${err}" "not running inside a herdr session"
 
-echo "== requires task text =="
+echo "== no task — spawns an idle worker =="
 
-"${spawn}" owner/SpawnRepo -- > /dev/null 2>&1
-expect_rc "missing task -> usage error" "$?" nz
+: > "${HERDR_STUB_LOG}"
+out="$("${spawn}" owner/SpawnRepo)"
+expect_grep "reports pane" "${out}" "Dispatched to pane pane-1"
+expect_grep "prints idle hint" "${out}" "herdr agent prompt pane-1"
+log="$(cat "${HERDR_STUB_LOG}")"
+expect_grep "agent launched" "${log}" "pane run pane-1 exec bwrap"
+expect_not_grep "no prompt submitted" "${log}" "agent prompt"
+
+echo "== bare -- with no text also spawns idle =="
+
+: > "${HERDR_STUB_LOG}"
+out="$("${spawn}" owner/SpawnRepo --)"
+expect_grep "reports pane" "${out}" "Dispatched to pane pane-1"
+expect_not_grep "still no prompt" "$(cat "${HERDR_STUB_LOG}")" "agent prompt"
+
+echo "== extra args without -- are rejected =="
+
+"${spawn}" owner/SpawnRepo stray-arg > /dev/null 2>&1
+expect_rc "stray arg -> usage error" "$?" nz
 
 echo ""
 printf 'passed: %d  failed: %d\n' "${pass}" "${fail}"
