@@ -87,6 +87,9 @@ EOF
 
 # stub_herdr — records invocations, serves canned JSON for the queries
 # spawn-repo-agent.sh makes, and exits 0 for everything else.
+# HERDR_STUB_PROMPT_STALL=1 makes `agent prompt` fail like a TUI that
+# swallowed the trailing Enter (agent_prompt_stalled); `agent wait` still
+# succeeds, simulating recovery via `pane send-keys Enter`.
 stub_herdr() {
   cat > "${stub_bin}/herdr" <<'EOF'
 #!/usr/bin/env bash
@@ -97,6 +100,12 @@ case "$1 $2" in
   "workspace create") echo '{"result":{"root_pane":{"pane_id":"pane-1"},"workspace_id":"ws-1"}}' ;;
   "tab create")       echo '{"result":{"root_pane":{"pane_id":"pane-1"},"pane":{"pane_id":"pane-1"}}}' ;;
   "pane get")         echo '{"result":{"pane":{"tab_id":"tab-1"}}}' ;;
+  "agent prompt")
+    if [[ "${HERDR_STUB_PROMPT_STALL:-0}" == "1" ]]; then
+      echo '{"error":{"code":"agent_prompt_stalled","message":"agent prompt produced no observed working or blocked state within 5000ms"},"id":"cli:agent:prompt"}'
+      exit 1
+    fi
+    ;;
   *) exit "${HERDR_STUB_RC:-0}" ;;
 esac
 EOF

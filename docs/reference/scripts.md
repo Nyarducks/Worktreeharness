@@ -42,7 +42,10 @@ launches the agent (sandboxed by default via
 `scripts/lib/sandbox-wrap.sh`), then submits a prompt: the task plus a
 self-naming preamble, or — with no task — a standby instruction that
 keeps the naming contract until work arrives via
-`herdr agent prompt <pane> "<task>"`. Prints `Dispatched to pane
+`herdr agent prompt <pane> "<task>"`. If the prompt submission stalls
+(agent TUI swallowed the trailing Enter under bracketed paste), the
+script sends a real `pane send-keys <pane> Enter` and re-waits before
+warning. Prints `Dispatched to pane
 <pane_id>` — keep the pane id for monitoring. See `orchestration.md`.
 
 ### `append-pr-log.sh <owner>/<repo> <pr-number> <worktree-path>`

@@ -3,7 +3,7 @@ type: Design Doc
 title: Worktreeharness
 description: Why this harness exists, what it does, and how the parts fit together — the entry point to docs/design/.
 status: current
-last_modified: 2026-09-20
+last_modified: 2026-09-29
 tags: [overview, architecture, design]
 sources: [docs/design]
 ---
@@ -156,7 +156,7 @@ bash tests/test-sandbox.sh   # bwrap confinement
 
 | Doc | Contents |
 |---|---|
-| [orchestration.md](orchestration.md) | How to ask the orchestrator to run workers — single-call dispatch via `spawn-repo-agent.sh` (task optional); lifecycle, monitoring, natural-language reporting, ownership, cleanup |
+| [orchestration.md](orchestration.md) | How to ask the orchestrator to run workers — single-call dispatch via `spawn-repo-agent.sh` (task optional) with prompt-stall recovery; lifecycle, monitoring, natural-language reporting, ownership, cleanup |
 | [sandbox.md](sandbox.md) | Worker sandbox permission model — path × access × reason matrix, process isolation, known holes |
 | [guard-hooks.md](guard-hooks.md) | Orchestrator-side `PreToolUse` policies — dual-root resolution, `ALLOWED_EXT_DIRS` allowlist, rm safety net, word-level command scanning |
 

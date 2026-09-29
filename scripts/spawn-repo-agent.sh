@@ -14,11 +14,13 @@
 #      mount namespace (scripts/lib/sandbox-wrap.sh): the filesystem is
 #      read-only except the worktree, the base repo's .git, the herdr socket,
 #      and the agent's own config dirs. --no-sandbox disables it.
-#   4. submits a prompt via `herdr agent prompt` (atomic paste+Enter). It
-#      always carries the self-naming contract — rename agent + tab to a
+#   4. submits a prompt via `herdr agent prompt` (paste+Enter). It always
+#      carries the self-naming contract — rename agent + tab to a
 #      task-derived slug — so names stay meaningful. With a task the worker
 #      starts immediately; with none the prompt is a standby instruction
 #      and the worker idles until `herdr agent prompt <pane> "<task>"`.
+#      TUI agents can swallow the trailing Enter (bracketed paste) — see
+#      the agent_prompt_stalled recovery below.
 #
 # Monitoring is pull-based: `herdr agent wait <pane> --until idle` and
 # `herdr agent read <pane>` — workers carry no reporting protocol.
@@ -268,12 +270,32 @@ No task is assigned yet — wait for follow-up prompts. When you receive a task,
 Slug rules: starts with a lowercase letter, only [a-z0-9_-], at most 32 chars. For now just acknowledge briefly and make no changes."
   fi
 
-  # agent prompt submits paste+Enter atomically; --wait --until working
-  # confirms the agent picked the task up without blocking on completion.
-  if ! herdr agent prompt "${pane_id}" "${prompt}" \
-      --wait --until working --until blocked --timeout 15000; then
-    echo "Warning: task submission was not confirmed as started. Check the pane:" >&2
-    echo "  herdr agent read ${pane_id} --lines 30" >&2
+  # agent prompt pastes the text + Enter "atomically"; --wait --until
+  # working confirms the agent picked the task up without blocking on
+  # completion. TUI agents (devin, claude) running bracketed paste can
+  # swallow the trailing Enter — the paste sits in the input unsubmitted
+  # and herdr's fixed 5s stall window fires agent_prompt_stalled (or the
+  # caller timeout fires first). Recover by sending a real Enter keypress
+  # and waiting again. Never nudge on other errors — a stray Enter could
+  # accept a blocked agent's permission prompt.
+  local prompt_out
+  if ! prompt_out="$(herdr agent prompt "${pane_id}" "${prompt}" \
+      --wait --until working --until blocked --timeout 15000 2>&1)"; then
+    if grep -Eq 'agent_prompt_stalled|"code": ?"timeout"' <<< "${prompt_out}"; then
+      sleep 1
+      herdr pane send-keys "${pane_id}" Enter >&2 || true
+      if herdr agent wait "${pane_id}" --until working --until blocked \
+          --until 'done' --timeout 15000 >&2; then
+        echo "Note: prompt needed an explicit Enter nudge (agent TUI swallowed prompt's trailing Enter)." >&2
+      else
+        echo "Warning: task submission was not confirmed as started. Check the pane:" >&2
+        echo "  herdr agent read ${pane_id} --lines 30" >&2
+      fi
+    else
+      printf '%s\n' "${prompt_out}" >&2
+      echo "Warning: task submission was not confirmed as started. Check the pane:" >&2
+      echo "  herdr agent read ${pane_id} --lines 30" >&2
+    fi
   fi
 
   echo "Dispatched to pane ${pane_id} (repo=${repo_name} worktree=${wt})."

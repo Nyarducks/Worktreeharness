@@ -42,6 +42,18 @@ expect_grep "prompt carries self-rename" "${log}" "herdr agent rename pane-1"
 expect_grep "prompt carries tab rename" "${log}" "herdr tab rename tab-1"
 expect_grep "prompt carries task" "${log}" "fix the flaky test"
 expect_not_grep "no bare agent start" "${log}" "herdr agent start"
+expect_not_grep "no Enter nudge on clean submit" "${log}" "send-keys"
+
+echo "== stalled prompt gets an Enter nudge =="
+
+: > "${HERDR_STUB_LOG}"
+out="$(HERDR_STUB_PROMPT_STALL=1 "${spawn}" owner/SpawnRepo -- "unstick me" 2>&1)"
+log="$(cat "${HERDR_STUB_LOG}")"
+expect_grep "prompt attempted" "${log}" "herdr agent prompt pane-1"
+expect_grep "Enter nudge sent" "${log}" "herdr pane send-keys pane-1 Enter"
+expect_grep "re-wait after nudge" "${log}" "agent wait pane-1 --until working"
+expect_grep "nudge reported" "${out}" "explicit Enter nudge"
+expect_grep "still dispatched" "${out}" "Dispatched to pane pane-1"
 
 echo "== --no-sandbox uses agent start =="
 
