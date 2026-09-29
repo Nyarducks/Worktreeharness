@@ -3,7 +3,7 @@ type: Design Doc
 title: Orchestration — Orchestrator and Worker lifecycle
 description: How the orchestrator dispatches, monitors, and steers workers through herdr; worker lifecycle and ownership.
 status: current
-last_modified: 2026-09-20
+last_modified: 2026-09-29
 tags: [orchestrator, herdr, dispatch, worker]
 sources: [scripts/spawn-repo-agent.sh, .agents/skills/worktree-development/SKILL.md]
 ---
@@ -42,7 +42,7 @@ sequenceDiagram
     O->>R: agent prompt <pane> (follow-up)
 ```
 
-Key decisions (see ADR-0003, ADR-0004):
+Key decisions (see ADR-0003, ADR-0004, ADR-0010):
 
 - **Herdr-native model**: one workspace per repo (matched by label), one
   tab per task, the worker in the tab's root pane. No harness-side state
@@ -70,6 +70,13 @@ Key decisions (see ADR-0003, ADR-0004):
   `herdr agent prompt <pane> "<task>"` keeps names meaningful.
 - **Pull-based monitoring**: workers carry no reporting protocol;
   `herdr agent wait/read/prompt` is the interface.
+- **Stall recovery on prompt submit**: `herdr agent prompt` pastes the
+  prompt + Enter "atomically", but TUI agents running bracketed paste
+  can swallow the trailing Enter — the paste sits unsubmitted while
+  herdr reports `agent_prompt_stalled`. The script recovers by sending
+  a real `herdr pane send-keys <pane> Enter` and re-waiting; other
+  failure modes (e.g. `agent_blocked`) are never nudged, since a stray
+  Enter could accept a permission prompt.
 
 ## Responsibilities
 
