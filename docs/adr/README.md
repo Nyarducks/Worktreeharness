@@ -15,3 +15,5 @@ the change that introduces the decision; see `CONTRIBUTING.md`.
 | [0006](0006-bubblewrap-worker-sandbox.md) | Confine workers with bubblewrap; fail closed |
 | [0007](0007-repo-local-guard-hooks.md) | Repo-local guard hooks with dual-root (SCRIPT_ROOT / lab root) resolution |
 | [0008](0008-self-dev-vs-dispatch-split.md) | Harness self-development in-process, all other repos dispatched; detached task worktrees |
+| [0009](0009-word-level-command-scanning.md) | Word-level scanning for command path candidates |
+| [0010](0010-prompt-stall-enter-nudge.md) | Recover stalled prompt submits with a real Enter keypress |

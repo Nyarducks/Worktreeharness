@@ -42,7 +42,7 @@ sequenceDiagram
     O->>R: agent prompt <pane> (follow-up)
 ```
 
-Key decisions (see ADR-0003, ADR-0004):
+Key decisions (see ADR-0003, ADR-0004, ADR-0010):
 
 - **Herdr-native model**: one workspace per repo (matched by label), one
   tab per task, the worker in the tab's root pane. No harness-side state
