@@ -235,6 +235,7 @@ _sandbox_wrap_seatbelt() {
     fi
     dir="$(dirname "${dir}")"
   done
+  local -a meta=()
   if [[ -n "${lab_root}" ]]; then
     local git_canon=""
     [[ -n "${common_git}" ]] && git_canon="$(realpath "${common_git}" 2>/dev/null || true)"
@@ -244,11 +245,25 @@ _sandbox_wrap_seatbelt() {
       _seatbelt_subpath reads "${lab_root}/repos"
     fi
     reads+=("(require-all (subpath \"$(_seatbelt_escape "${lab_root}/worktree")\") (require-not (subpath \"$(_seatbelt_escape "${wt_canon}")\")))")
+
+    # Path resolution stats every ancestor — without a metadata pass on
+    # the dirs between a denied tree root and its carved-out subtree, even
+    # the allowed paths are unreachable (git dies with "Invalid path").
+    # file-read-metadata allows stat/traversal but not listing.
+    local inner
+    for inner in "${git_canon}" "${wt_canon}"; do
+      [[ -n "${inner}" ]] || continue
+      while [[ "${inner}" == "${lab_root}/"*/* ]]; do
+        inner="${inner%/*}"
+        meta+=("(literal \"$(_seatbelt_escape "${inner}")\")")
+      done
+    done
   fi
 
   local profile="(version 1) (allow default) (deny file-write*)"
   profile+=" (allow file-write* ${writes[*]})"
   ((${#reads[@]})) && profile+=" (deny file-read* ${reads[*]})"
+  ((${#meta[@]})) && profile+=" (allow file-read-metadata ${meta[*]})"
   # The ssh-agent socket sits under a launchd dir outside $HOME — deny it
   # explicitly since nothing else covers it. Seatbelt matches canonical
   # paths, so deny both the raw and resolved forms (/tmp → /private/tmp).
