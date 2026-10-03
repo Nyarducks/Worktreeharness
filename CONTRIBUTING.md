@@ -33,7 +33,7 @@ Shell tests live in `tests/`. Run them before pushing:
 
 ```bash
 bash tests/test-hooks.sh                    # guard-hook allow/deny matrix
-bash tests/test-sandbox.sh                  # bwrap sandbox confinement
+bash tests/test-sandbox.sh                  # worker sandbox confinement (bwrap on Linux, seatbelt on macOS)
 for t in tests/scripts/test-*.sh; do bash "$t"; done   # per-script tests
 bash scripts/lint.sh                        # shellcheck every shell file
 ```
@@ -45,7 +45,8 @@ shellcheck from PATH.
 Hook changes must extend `test-hooks.sh` (it simulates each agent's stdin
 JSON protocol). Sandbox changes must extend `test-sandbox.sh`. Any change
 to `scripts/*.sh` must extend the matching `tests/scripts/test-*.sh` —
-stubs for `gh`/`herdr`/`bwrap` live in `tests/scripts/lib.sh`. The
+stubs for `gh`/`herdr` and the platform sandbox tool live in
+`tests/scripts/lib.sh`. The
 `scripts/*.sh` → `tests/scripts/test-*.sh` pairing is enforced by
 `scripts/check-test-coverage.sh`.
 

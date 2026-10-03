@@ -3,7 +3,7 @@ type: Reference
 title: Agent Skills
 description: The slash-command skills shipped in .agents/skills and what each one orchestrates.
 status: current
-last_modified: 2026-09-20
+last_modified: 2026-10-03
 tags: [skills, workflow]
 sources: [.agents/skills]
 ---

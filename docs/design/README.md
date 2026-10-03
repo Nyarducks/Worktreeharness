@@ -3,7 +3,7 @@ type: Design Doc
 title: Worktreeharness
 description: Why this harness exists, what it does, and how the parts fit together — the entry point to docs/design/.
 status: current
-last_modified: 2026-09-29
+last_modified: 2026-10-03
 tags: [overview, architecture, design]
 sources: [docs/design]
 ---
@@ -90,8 +90,8 @@ flowchart TB
         WS --- T2
     end
 
-    T1 -.->|bwrap: rw| WTA
-    T2 -.->|bwrap: rw| WTB
+    T1 -.->|sandbox: rw| WTA
+    T2 -.->|sandbox: rw| WTB
     WTA -->|shared .git| Repos
     WTB -->|shared .git| Repos
 ```
@@ -124,7 +124,7 @@ ancestor — the policy boundary). See ADR-0007.
 |---|---|---|
 | Orchestrator | Receives the human's request, dispatches workers, reports worker status on request. Implements only Worktreeharness itself, in a self-created worktree | [orchestration.md](orchestration.md) |
 | Worker | Executes the task inside its assigned worktree; may use repo-local and global skills; cannot access outside its worktree | [orchestration.md](orchestration.md) |
-| Worker sandbox | bubblewrap mount namespace confining a worker to its worktree | [sandbox.md](sandbox.md) |
+| Worker sandbox | OS-level confinement of a worker to its worktree — bubblewrap mount namespace on Linux, Seatbelt profile on macOS | [sandbox.md](sandbox.md) |
 | Guard hooks | Repo-local `PreToolUse` policies confining the orchestrator's own file/shell access | [guard-hooks.md](guard-hooks.md) |
 | Agent configs | Per-CLI config dirs + canonical `.agents/skills` | [../reference/agent-configs.md](../reference/agent-configs.md) |
 | Skills | Slash-command procedures available to the orchestrator | [../reference/skills.md](../reference/skills.md) |
@@ -134,21 +134,23 @@ ancestor — the policy boundary). See ADR-0007.
 
 - Orchestrator file access is confined by repo-local `PreToolUse` hooks —
   advisory, assuming a cooperating agent runtime.
-- Workers are confined by a kernel mount namespace — enforcement, not
+- Workers are confined by a kernel-enforced sandbox — enforcement, not
   advice. Details: [sandbox.md](sandbox.md).
-- Dispatch is fail-closed: no `bwrap`, no sandboxed worker.
+- Dispatch is fail-closed: no platform sandbox backend, no sandboxed
+  worker.
 
 ## Testing
 
 ```bash
 bash tests/test-hooks.sh     # guard-hook allow/deny matrix
-bash tests/test-sandbox.sh   # bwrap confinement
+bash tests/test-sandbox.sh   # worker sandbox confinement (bwrap/seatbelt)
 ```
 
 ## References
 
 - herdr — terminal workspace manager for agent processes
 - bubblewrap — https://github.com/containers/bubblewrap
+- sandbox-exec / Seatbelt — `man sandbox-exec` (macOS)
 - git worktree — https://git-scm.com/docs/git-worktree
 - Google Open Knowledge Format v0.2 — frontmatter convention used in `docs/`
 

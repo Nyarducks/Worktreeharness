@@ -3,7 +3,7 @@ type: Reference
 title: Harness Scripts
 description: Behavior contract of every script under scripts/ — what it does, what it writes, and what it prints.
 status: current
-last_modified: 2026-09-20
+last_modified: 2026-10-03
 tags: [scripts, reference]
 sources: [scripts]
 ---
@@ -45,7 +45,9 @@ keeps the naming contract until work arrives via
 `herdr agent prompt <pane> "<task>"`. If the prompt submission stalls
 (agent TUI swallowed the trailing Enter under bracketed paste), the
 script sends a real `pane send-keys <pane> Enter` and re-waits before
-warning. Prints `Dispatched to pane
+warning. Agent-settings merges (`ensure_trusted_workspace`) lock with a
+`mkdir` lockdir — `flock(1)` is Linux-only and never a documented
+requirement. Prints `Dispatched to pane
 <pane_id>` — keep the pane id for monitoring. See `orchestration.md`.
 
 ### `append-pr-log.sh <owner>/<repo> <pr-number> <worktree-path>`
@@ -122,8 +124,11 @@ substitutions — are still checked.
 
 ### `sandbox-wrap.sh`
 
-Builds the bubblewrap command line that confines a spawned worker to its
-worktree — agent-agnostic mount-namespace isolation. See `sandbox.md` for
-the permission model. `sandbox_wrap_cmd <worktree> <kind> <argv...>`
-prints a quoted `bwrap ... -- <argv>` command; returns 3 when `bwrap` is
-missing so callers fail closed.
+Builds the sandboxed command line that confines a spawned worker to its
+worktree — agent-agnostic OS-level isolation. Backend per platform:
+bubblewrap mount namespace on Linux, a generated Seatbelt profile passed
+to `/usr/bin/sandbox-exec` on macOS. See `sandbox.md` for the permission
+model. `sandbox_wrap_cmd <worktree> <kind> <argv...>` prints a quoted
+`<backend> ... <argv>` command; `sandbox_backend` prints which backend
+applies here. Both return 3 when the platform's tool is missing (or the
+platform is unsupported) so callers fail closed.

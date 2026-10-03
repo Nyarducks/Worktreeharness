@@ -76,6 +76,46 @@ jobs:
       - name: Test coverage gate
         run: bash scripts/check-test-coverage.sh
 
+  # Same suites on macOS — exercises the seatbelt backend and the portable
+  # lock/realpath fallbacks. No bwrap/apparmor setup: the macOS sandbox is
+  # the builtin /usr/bin/sandbox-exec.
+  shell-test-macos:
+    needs: changes
+    if: needs.changes.outputs.shell == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # macOS ships bash 3 — the suites need bash ≥ 4.3 (namerefs), so
+      # install Homebrew bash and prepend brew's bin dir for every
+      # subsequent step.
+      - name: Install test dependencies
+        run: brew install bash jq
+
+      - name: Prefer Homebrew tools
+        run: echo "$(brew --prefix)/bin" >> "${GITHUB_PATH}"
+
+      - name: Verify bash ≥ 4
+        run: bash -c 'echo "$BASH_VERSION"; [[ "${BASH_VERSINFO[0]}" -ge 4 ]]'
+
+      - name: Hook tests
+        run: bash tests/test-hooks.sh
+
+      - name: Sandbox tests
+        run: bash tests/test-sandbox.sh
+
+      - name: Script tests
+        run: |
+          failed=0
+          for t in tests/scripts/test-*.sh; do
+            echo "### ${t}"
+            bash "${t}" || failed=1
+          done
+          exit "${failed}"
+
+      - name: Test coverage gate
+        run: bash scripts/check-test-coverage.sh
+
   shell-lint:
     needs: changes
     if: needs.changes.outputs.shell == 'true'

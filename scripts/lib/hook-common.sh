@@ -57,7 +57,9 @@ hook_deny_json() {
 # filesystem escape (e.g. the binary being exec'd under /usr/bin).
 hook_is_system_path() {
   case "$1" in
-    /bin/* | /usr/bin/* | /usr/local/bin/* | /dev/null) return 0 ;;
+    # bare dirs too: /bin canonicalizes to /usr/bin on merged-usr systems,
+    # which would otherwise fall outside the /* child patterns
+    /bin | /usr/bin | /usr/local/bin | /bin/* | /usr/bin/* | /usr/local/bin/* | /dev/null) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -223,15 +225,15 @@ hook_guard_command() {
     [[ -z "${candidate}" ]] && continue
     # shellcheck disable=SC2088 # "~" tokens are literal matches, expanded manually below
     if [[ "${candidate}" = /* ]]; then
-      target="$(realpath -m "${candidate}")"
+      target="$(wth_realpath_m "${candidate}" 2>/dev/null || printf '%s\n' "${candidate}")"
     elif [[ "${candidate}" == "~/"* || "${candidate}" == "~" ]]; then
       # ~ and ~/x expand to $HOME, exactly like the shell would
-      target="$(realpath -m "${HOME:-/}${candidate#\~}")"
+      target="$(wth_realpath_m "${HOME:-/}${candidate#\~}" 2>/dev/null || printf '%s\n' "${HOME:-/}${candidate#\~}")"
     elif [[ "${candidate}" == "~"* ]]; then
       # ~user form cannot be resolved statically — it is outside anyway
       target="${candidate}"
     else
-      target="$(realpath -m "${cwd}/${candidate}")"
+      target="$(wth_realpath_m "${cwd}/${candidate}" 2>/dev/null || printf '%s\n' "${cwd}/${candidate}")"
     fi
 
     hook_is_system_path "${target}" && continue
@@ -275,9 +277,9 @@ hook_guard_paths() {
   while IFS= read -r candidate; do
     [[ -z "${candidate}" ]] && continue
     if [[ "${candidate}" = /* ]]; then
-      target="$(realpath -m "${candidate}" 2>/dev/null || printf '%s\n' "${candidate}")"
+      target="$(wth_realpath_m "${candidate}" 2>/dev/null || printf '%s\n' "${candidate}")"
     else
-      target="$(realpath -m "${rel_base}${candidate}" 2>/dev/null || printf '%s%s\n' "${rel_base}" "${candidate}")"
+      target="$(wth_realpath_m "${rel_base}${candidate}" 2>/dev/null || printf '%s%s\n' "${rel_base}" "${candidate}")"
     fi
 
     [[ "${target}" == "${root_dir}" || "${target}" == "${root_dir}/"* ]] && continue

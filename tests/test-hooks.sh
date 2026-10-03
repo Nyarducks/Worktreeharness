@@ -58,6 +58,9 @@ run_matrix() {
   expect_deny  "${tag} claude read: /tmp unlisted"     "${h_claude}/restrict-to-repo-root.sh" "$(pj_file "/tmp/wth-scratch-${tag}.txt" "${co}")"
 
   expect_allow "${tag} claude bash: ls"                "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "ls -la" "${co}")"
+  # /bin canonicalizes to /usr/bin on merged-usr systems — the bare dir is
+  # still a system path, not an escape
+  expect_allow "${tag} claude bash: bare system dir"   "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "ls /bin" "${co}")"
   expect_deny  "${tag} claude bash: rm -rf ~"          "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "rm -rf ~" "${co}")"
   expect_deny  "${tag} claude bash: rm -rf /"          "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "rm -rf /" "${co}")"
   expect_deny  "${tag} claude bash: sudo rm -rf /etc"  "${h_claude}/guard-bash-commands.sh" "$(pj_cmd "sudo rm -rf /etc" "${co}")"

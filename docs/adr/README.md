@@ -17,3 +17,4 @@ the change that introduces the decision; see `CONTRIBUTING.md`.
 | [0008](0008-self-dev-vs-dispatch-split.md) | Harness self-development in-process, all other repos dispatched; detached task worktrees |
 | [0009](0009-word-level-command-scanning.md) | Word-level scanning for command path candidates |
 | [0010](0010-prompt-stall-enter-nudge.md) | Recover stalled prompt submits with a real Enter keypress |
+| [0011](0011-macos-seatbelt-sandbox.md) | macOS support — Seatbelt sandbox backend and portable locking |

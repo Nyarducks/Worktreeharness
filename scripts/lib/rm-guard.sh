@@ -9,6 +9,25 @@
 # Sourced by .claude/hooks/*.sh and .codex/hooks/*.sh — keep POSIX-ish bash,
 # no external deps beyond coreutils (realpath) already required by the harness.
 
+# wth_realpath_m <path> — GNU `realpath -m` equivalent. GNU realpath first,
+# then grealpath (Homebrew coreutils installs only the g-prefixed name), then
+# python3 — macOS's builtin BSD realpath has no -m, and python3 ships with
+# the Command Line Tools every git user already has. Prints nothing on total
+# failure; callers fall back to the unnormalized path.
+wth_realpath_m() {
+  local out
+  if out="$(realpath -m "$1" 2>/dev/null)" && [[ -n "${out}" ]]; then
+    printf '%s\n' "${out}"
+    return 0
+  fi
+  if out="$(grealpath -m "$1" 2>/dev/null)" && [[ -n "${out}" ]]; then
+    printf '%s\n' "${out}"
+    return 0
+  fi
+  command -v python3 > /dev/null 2>&1 || return 1
+  python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$1" 2>/dev/null
+}
+
 # Absolute top-level directories that must never be the direct target of a
 # recursive rm, regardless of ALLOWED_EXT_DIRS.
 readonly -a _RM_GUARD_CRITICAL_DIRS=(
@@ -62,9 +81,9 @@ rm_guard_resolve_token() {
 
   local resolved
   if [[ "${tok}" == /* ]]; then
-    resolved="$(realpath -m "${tok}" 2>/dev/null)"
+    resolved="$(wth_realpath_m "${tok}")"
   else
-    resolved="$(realpath -m "${cwd}/${tok}" 2>/dev/null)"
+    resolved="$(wth_realpath_m "${cwd}/${tok}")"
   fi
   [[ -z "${resolved}" ]] && resolved="${tok}"
 
@@ -153,7 +172,7 @@ load_allowed_ext_dirs() {
     entry="$(echo "${entry}" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
     [[ -z "${entry}" ]] && continue
     expanded="${entry/#\~/${HOME:-}}"
-    realpath -m "${expanded}" 2>/dev/null
+    wth_realpath_m "${expanded}"
   done
 }
 

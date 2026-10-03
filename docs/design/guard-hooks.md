@@ -3,7 +3,7 @@ type: Design Doc
 title: Guard Hooks
 description: The repo-local PreToolUse policies that confine the orchestrator — dual-root resolution, ALLOWED_EXT_DIRS, and the unconditional rm safety net.
 status: current
-last_modified: 2026-09-20
+last_modified: 2026-10-03
 tags: [hooks, security, agents]
 sources: [scripts/lib/hook-common.sh, scripts/lib/rm-guard.sh, .env.sample, .claude/settings.json, .codex/hooks.json, .agents/hooks.json, .devin/hooks.v1.json]
 ---
@@ -74,8 +74,14 @@ flowchart TD
 
 Hooks are **advisory**: they run inside the agent's tool-call pipeline and
 assume a cooperating runtime. Obfuscated shell can evade path matching —
-the bwrap sandbox is the enforcement layer for workers. Hooks exist to
-stop orchestrator accidents, not attacks.
+the OS sandbox is the enforcement layer for workers (see
+[sandbox.md](sandbox.md)). Hooks exist to stop orchestrator accidents, not
+attacks.
+
+Path normalisation uses `realpath -m` semantics via `wth_realpath_m`:
+GNU `realpath` where present, else `grealpath` (Homebrew coreutils), else
+the python3 that ships with macOS Command Line Tools — so the hooks work
+on macOS without coreutils installed.
 
 ## Testing
 

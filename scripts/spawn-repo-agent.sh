@@ -10,10 +10,12 @@
 #      label) or creates it, adding a tab bound to the new worktree
 #   3. starts the agent in that tab's root pane with cwd=<worktree>, so the
 #      repo's own AGENTS.md/.agents/skills load — the worker knows nothing
-#      about this harness. By default the agent runs inside a bubblewrap
-#      mount namespace (scripts/lib/sandbox-wrap.sh): the filesystem is
-#      read-only except the worktree, the base repo's .git, the herdr socket,
-#      and the agent's own config dirs. --no-sandbox disables it.
+#      about this harness. By default the agent runs inside the platform
+#      sandbox (scripts/lib/sandbox-wrap.sh — bubblewrap on Linux, Seatbelt
+#      via sandbox-exec on macOS): nothing outside the worktree, the base
+#      repo's .git, the herdr socket, the agent's own config dirs, and OS
+#      scratch dirs is writable; credentials and sibling lab trees stay
+#      hidden. --no-sandbox disables it.
 #   4. submits a prompt via `herdr agent prompt` (paste+Enter). It always
 #      carries the self-naming contract — rename agent + tab to a
 #      task-derived slug — so names stay meaningful. With a task the worker
@@ -73,15 +75,33 @@ wait_for_agent() {
 
 # json_merge_atomic <file> <path-arg> <jq-filter>
 # Applies <jq-filter> (with $path bound to <path-arg>) to <file> in place,
-# atomically (flock + mktemp + mv). Recovers an empty object first when the
-# file is corrupt.
+# atomically (lock + mktemp + mv). The lock is a directory — mkdir(2) is
+# atomic on every platform, so no flock(1) dependency (flock is Linux-only
+# and was never in Requirements). mktemp templates keep their X's trailing
+# for BSD mktemp. Recovers an empty object first when the file is corrupt.
 json_merge_atomic() {
   local settings_file="$1" path_arg="$2" filter="$3"
+  local lockdir="${settings_file}.lock.d" tries=0
+  until mkdir "${lockdir}" 2>/dev/null; do
+    tries=$((tries + 1))
+    # every ~10s assume the holder died mid-merge and break the stale lock
+    # (the lockdir is always empty, so rmdir is a safe reclaim)
+    if (( tries % 100 == 0 )); then
+      rmdir "${lockdir}" 2>/dev/null || true
+    fi
+    if (( tries > 300 )); then
+      echo "Error: timed out locking ${settings_file}" >&2
+      return 1
+    fi
+    sleep 0.1
+  done
+  local rc=0
   (
-    flock -x 200
     if ! jq -e 'type == "object"' "${settings_file}" >/dev/null 2>&1; then
       local backup_file recovery_tmp
-      backup_file="$(mktemp "${settings_file}.corrupt-XXXXXX.bak")"
+      backup_file="$(mktemp "${settings_file}.corrupt-XXXXXX")"
+      mv "${backup_file}" "${backup_file}.bak"
+      backup_file="${backup_file}.bak"
       cp "${settings_file}" "${backup_file}" 2>/dev/null || true
       recovery_tmp="$(mktemp "${settings_file}.XXXXXX")"
       echo "{}" > "${recovery_tmp}"
@@ -95,7 +115,9 @@ json_merge_atomic() {
     else
       rm -f "${tmp_file}"
     fi
-  ) 200>"${settings_file}.lock"
+  ) || rc=$?
+  rmdir "${lockdir}"
+  return "${rc}"
 }
 
 # ensure_trusted_workspace <worktree_path>
@@ -215,14 +237,15 @@ main() {
   local agent_name="w-${uuid}"
   if [[ ${sandbox} -eq 1 ]]; then
     # Sandboxed workers can't use `agent start --kind` (it execs the bare
-    # binary); the pane gets a bwrap-wrapped command instead. Fail closed:
-    # a worker without its filesystem boundary is worse than no worker.
-    command -v bwrap > /dev/null 2>&1 || {
-      echo "Error: sandboxed workers require bubblewrap (bwrap). Install it, or pass --no-sandbox." >&2
-      exit 1
-    }
+    # binary); the pane gets a sandbox-wrapped command instead. Fail
+    # closed: a worker without its filesystem boundary is worse than no
+    # worker.
     # shellcheck source=scripts/lib/sandbox-wrap.sh
     source "${script_dir}/lib/sandbox-wrap.sh"
+    sandbox_backend > /dev/null 2>&1 || {
+      echo "Error: sandboxed workers require a platform sandbox backend (bwrap on Linux, sandbox-exec on macOS) — none found. Pass --no-sandbox to run unconfined." >&2
+      exit 1
+    }
     local -a agent_argv
     read -ra agent_argv <<< "${kind} ${agent_flags}"
     local wrapped

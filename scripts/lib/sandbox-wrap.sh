@@ -1,27 +1,78 @@
 #!/usr/bin/env bash
-# sandbox-wrap.sh — build a bubblewrap command line that confines a spawned
-# agent to its worktree at the OS level (mount namespace), independent of
-# which agent CLI is inside.
+# sandbox-wrap.sh — build a sandboxed command line that confines a spawned
+# agent to its worktree at the OS level, independent of which agent CLI is
+# inside. One backend per platform:
 #
-# Policy:
-#   /            read-only bind
-#   /tmp         tmpfs (ephemeral scratch; skipped when the worktree lives
-#                under /tmp — a parent tmpfs would orphan the worktree bind)
-#   $HOME        tmpfs (hides ~/.ssh, other repos, credentials, ...)
-#   <worktree>   rw bind — the only project path the worker can write
-#   <base>/.git  rw bind — linked worktrees keep index/objects/refs there;
+#   Linux  bubblewrap mount namespace (bwrap)
+#   macOS  Seatbelt profile applied via /usr/bin/sandbox-exec
+#
+# Shared policy:
+#   /            everything readable except hidden paths; not writable
+#   scratch      ephemeral — Linux: tmpfs over /tmp + $HOME; macOS: /tmp,
+#                the $TMPDIR tree, ~/Library/{Caches,Logs}, ~/.cache
+#   <worktree>   rw — the only project path the worker can write
+#   <base>/.git  rw — linked worktrees keep index/objects/refs there;
 #                without it `git add`/`commit` cannot work
-#   agent dirs   rw bind — the CLI's own state (~/.claude, ~/.config/devin, ...)
-#   agent binary ro bind — CLIs installed under $HOME (e.g. ~/.local/bin/devin)
-#                would otherwise vanish with the tmpfs'd $HOME
+#   agent dirs   rw — the CLI's own state (~/.claude, ~/.config/devin, ...)
+#   agent binary Linux only: rebound at its PATH location — CLIs installed
+#                under $HOME (e.g. ~/.local/bin/devin) would otherwise
+#                vanish with the tmpfs'd $HOME
 #   herdr socket dir  rw — workers self-rename via `herdr agent rename`
-#   gh/gitconfig  ro — https push credentials; readable but not writable
-#   ssh          nothing — remotes are https via `gh`, so ~/.ssh and
-#                SSH_AUTH_SOCK are left hidden entirely
+#   gh config, gitconfig, git-credentials, netrc — readable; gitconfig/
+#                credentials/netrc stay unwritable
+#   ssh          hidden — remotes are https via `gh`, so ~/.ssh and
+#                SSH_AUTH_SOCK stay out of reach
+#   lab trees    macOS: repos/ and worktree/ siblings of the assignment are
+#                read-denied (what the tmpfs'd $HOME hides on Linux when
+#                the lab lives under it — applied unconditionally here)
+#
+# sandbox_backend — prints the platform's sandbox tool (bwrap |
+#   sandbox-exec). rc 3 when it is missing or the platform is unsupported.
 #
 # sandbox_wrap_cmd <worktree> <kind> <argv...>
-#   Prints a shell-quoted command line "bwrap ... -- <argv>" on stdout.
-#   rc: 0 ok · 2 usage · 3 bwrap not installed
+#   Prints a shell-quoted command line "<backend> ... <argv>" on stdout.
+#   rc: 0 ok · 2 usage · 3 sandbox backend unavailable
+
+sandbox_backend() {
+  case "$(uname -s)" in
+    Linux)
+      command -v bwrap > /dev/null 2>&1 || return 3
+      printf 'bwrap\n' ;;
+    Darwin)
+      command -v sandbox-exec > /dev/null 2>&1 || return 3
+      printf 'sandbox-exec\n' ;;
+    *) return 3 ;;
+  esac
+}
+
+sandbox_wrap_cmd() {
+  local wt="$1" kind="$2"
+  shift 2
+  [[ -n "${wt}" && -n "${kind}" && $# -ge 1 ]] || return 2
+  case "$(uname -s)" in
+    Linux)  _sandbox_wrap_bwrap "${wt}" "${kind}" "$@" ;;
+    Darwin) _sandbox_wrap_seatbelt "${wt}" "${kind}" "$@" ;;
+    *) return 3 ;;
+  esac
+}
+
+# --- shared ---------------------------------------------------------------
+
+_sandbox_common_git() {
+  git -C "$1" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true
+}
+
+# _sandbox_agent_dirs <kind> — the CLI's own config paths, one per line.
+_sandbox_agent_dirs() {
+  case "$1" in
+    claude) printf '%s\n' "${HOME}/.claude" "${HOME}/.claude.json" ;;
+    devin)  printf '%s\n' "${HOME}/.config/devin" "${HOME}/.local/share/devin" "${HOME}/.devin" ;;
+    agy)    printf '%s\n' "${HOME}/.gemini" ;;
+    codex)  printf '%s\n' "${HOME}/.codex" ;;
+  esac
+}
+
+# --- Linux: bubblewrap ----------------------------------------------------
 
 # sandbox_bind <args-array-name> <rw|ro> <path>
 # Appends a bind pair only when <path> exists on the host.
@@ -36,14 +87,13 @@ sandbox_bind() {
   fi
 }
 
-sandbox_wrap_cmd() {
+_sandbox_wrap_bwrap() {
   local wt="$1" kind="$2"
   shift 2
-  [[ -n "${wt}" && -n "${kind}" && $# -ge 1 ]] || return 2
   command -v bwrap > /dev/null 2>&1 || return 3
 
   local common_git
-  common_git="$(git -C "${wt}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+  common_git="$(_sandbox_common_git "${wt}")"
 
   local -a args=(
     bwrap
@@ -94,24 +144,137 @@ sandbox_wrap_cmd() {
 
   # Per-agent CLI state — the agent must be able to write its own
   # config/session dirs even though the rest of $HOME is hidden.
-  case "${kind}" in
-    claude)
-      sandbox_bind args rw "${HOME}/.claude"
-      sandbox_bind args rw "${HOME}/.claude.json"
-      ;;
-    devin)
-      sandbox_bind args rw "${HOME}/.config/devin"
-      sandbox_bind args rw "${HOME}/.local/share/devin"
-      sandbox_bind args rw "${HOME}/.devin"
-      ;;
-    agy)
-      sandbox_bind args rw "${HOME}/.gemini"
-      ;;
-    codex)
-      sandbox_bind args rw "${HOME}/.codex"
-      ;;
-  esac
+  while IFS= read -r d; do
+    sandbox_bind args rw "${d}"
+  done < <(_sandbox_agent_dirs "${kind}")
 
   args+=(--)
   printf '%q ' "${args[@]}" "$@"
+}
+
+# --- macOS: Seatbelt (sandbox-exec) ---------------------------------------
+#
+# The profile follows the bazel/anthropic-style "allow default, then
+# restrict" shape rather than deny-default: an exhaustive op allowlist
+# (mach services, sysctl, iokit, ...) is fragile across macOS releases and
+# a missing op breaks agents silently — while the property the harness
+# actually promises is write confinement plus credential hiding.
+# Seatbelt is last-match-wins, so write allows land after the global
+# write-deny and read denies land last so nothing re-opens them.
+
+# _seatbelt_escape <path> — escape a path for a double-quoted SBPL string.
+_seatbelt_escape() {
+  local p="$1"
+  p="${p//\\/\\\\}"
+  p="${p//\"/\\\"}"
+  printf '%s' "${p}"
+}
+
+# _seatbelt_subpath <args-array-name> <path>
+# Appends `(subpath "<canonical>")` when <path> exists. Seatbelt matches
+# canonicalized paths, so symlinks (/tmp → /private/tmp, /var →
+# /private/var) are resolved here — realpath exists on macOS and the path
+# is existence-checked first.
+_seatbelt_subpath() {
+  local -n _out="$1"
+  local path="$2" canon
+  [[ -e "${path}" ]] || return 0
+  canon="$(realpath "${path}" 2>/dev/null || printf '%s' "${path}")"
+  _out+=("(subpath \"$(_seatbelt_escape "${canon}")\")")
+}
+
+_sandbox_wrap_seatbelt() {
+  local wt="$1" kind="$2"
+  shift 2
+  command -v sandbox-exec > /dev/null 2>&1 || return 3
+
+  local common_git
+  common_git="$(_sandbox_common_git "${wt}")"
+  local wt_canon
+  wt_canon="$(realpath "${wt}" 2>/dev/null || printf '%s' "${wt}")"
+
+  # Writable set — mirrors the bwrap rw binds. Seatbelt has no tmpfs, so
+  # host scratch dirs stand in for the ephemeral /tmp + $HOME mounts.
+  local -a writes=()
+  _seatbelt_subpath writes "${wt}"
+  [[ -n "${common_git}" ]] && _seatbelt_subpath writes "${common_git}"
+  _seatbelt_subpath writes "${HOME}/.config/herdr"
+  _seatbelt_subpath writes "${HOME}/.config/gh"
+  local d
+  while IFS= read -r d; do _seatbelt_subpath writes "${d}"; done \
+    < <(_sandbox_agent_dirs "${kind}")
+  _seatbelt_subpath writes "/dev"
+  _seatbelt_subpath writes "/tmp"
+  _seatbelt_subpath writes "/var/tmp"
+  if [[ -n "${TMPDIR:-}" ]]; then
+    # TMPDIR's parent covers the per-user Caches sibling (…/T and …/C)
+    _seatbelt_subpath writes "$(dirname "${TMPDIR}")"
+  fi
+  _seatbelt_subpath writes "${HOME}/Library/Caches"
+  _seatbelt_subpath writes "${HOME}/Library/Logs"
+  _seatbelt_subpath writes "${HOME}/.cache"
+
+  # Hidden reads — credentials, plus the lab trees a worker has no
+  # business in (its own worktree + base .git are carved back out via
+  # require-not). require-not needs one filter per level, so each rule is
+  # require-all(deny-subtree, require-not(carve-out)).
+  local -a reads=()
+  _seatbelt_subpath reads "${HOME}/.ssh"
+  _seatbelt_subpath reads "${HOME}/.gnupg"
+  _seatbelt_subpath reads "${HOME}/.aws"
+  _seatbelt_subpath reads "${HOME}/.azure"
+  _seatbelt_subpath reads "${HOME}/.kube"
+  _seatbelt_subpath reads "${HOME}/.docker"
+  _seatbelt_subpath reads "${HOME}/.config/gcloud"
+
+  local dir="${wt}" lab_root=""
+  while [[ -n "${dir}" && "${dir}" != "/" ]]; do
+    if [[ -d "${dir}/worktree" && -d "${dir}/repos" ]]; then
+      lab_root="$(realpath "${dir}")"
+      break
+    fi
+    dir="$(dirname "${dir}")"
+  done
+  local -a meta=()
+  if [[ -n "${lab_root}" ]]; then
+    local git_canon=""
+    [[ -n "${common_git}" ]] && git_canon="$(realpath "${common_git}" 2>/dev/null || true)"
+    if [[ -n "${git_canon}" ]]; then
+      reads+=("(require-all (subpath \"$(_seatbelt_escape "${lab_root}/repos")\") (require-not (subpath \"$(_seatbelt_escape "${git_canon}")\")))")
+    else
+      _seatbelt_subpath reads "${lab_root}/repos"
+    fi
+    reads+=("(require-all (subpath \"$(_seatbelt_escape "${lab_root}/worktree")\") (require-not (subpath \"$(_seatbelt_escape "${wt_canon}")\")))")
+
+    # Path resolution stats every ancestor — without a metadata pass on
+    # the dirs between a denied tree root and its carved-out subtree, even
+    # the allowed paths are unreachable (git dies with "Invalid path").
+    # file-read-metadata allows stat/traversal but not listing.
+    local inner
+    for inner in "${git_canon}" "${wt_canon}"; do
+      [[ -n "${inner}" ]] || continue
+      while [[ "${inner}" == "${lab_root}/"*/* ]]; do
+        inner="${inner%/*}"
+        meta+=("(literal \"$(_seatbelt_escape "${inner}")\")")
+      done
+    done
+  fi
+
+  local profile="(version 1) (allow default) (deny file-write*)"
+  profile+=" (allow file-write* ${writes[*]})"
+  ((${#reads[@]})) && profile+=" (deny file-read* ${reads[*]})"
+  ((${#meta[@]})) && profile+=" (allow file-read-metadata ${meta[*]})"
+  # The ssh-agent socket sits under a launchd dir outside $HOME — deny it
+  # explicitly since nothing else covers it. Seatbelt matches canonical
+  # paths, so deny both the raw and resolved forms (/tmp → /private/tmp).
+  if [[ -n "${SSH_AUTH_SOCK:-}" ]]; then
+    local sock_canon
+    sock_canon="$(realpath "${SSH_AUTH_SOCK}" 2>/dev/null || true)"
+    profile+=" (deny file-read* file-write* network-outbound network-inbound (literal \"$(_seatbelt_escape "${SSH_AUTH_SOCK}")\")"
+    [[ -n "${sock_canon}" && "${sock_canon}" != "${SSH_AUTH_SOCK}" ]] \
+      && profile+=" (literal \"$(_seatbelt_escape "${sock_canon}")\")"
+    profile+=")"
+  fi
+
+  printf '%q ' sandbox-exec -p "${profile}" "$@"
 }
