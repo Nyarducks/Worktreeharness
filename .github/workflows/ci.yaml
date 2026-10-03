@@ -86,13 +86,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # macOS ships bash 3 — the suites need bash ≥ 4.3 (namerefs). The
-      # runner image's Homebrew bash satisfies this; fail loudly if not.
+      # macOS ships bash 3 — the suites need bash ≥ 4.3 (namerefs), so
+      # install Homebrew bash and prepend brew's bin dir for every
+      # subsequent step.
+      - name: Install test dependencies
+        run: brew install bash jq
+
+      - name: Prefer Homebrew tools
+        run: echo "$(brew --prefix)/bin" >> "${GITHUB_PATH}"
+
       - name: Verify bash ≥ 4
         run: bash -c 'echo "$BASH_VERSION"; [[ "${BASH_VERSINFO[0]}" -ge 4 ]]'
-
-      - name: Install test dependencies
-        run: brew install jq
 
       - name: Hook tests
         run: bash tests/test-hooks.sh
