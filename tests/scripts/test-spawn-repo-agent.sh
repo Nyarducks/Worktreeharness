@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # test-spawn-repo-agent.sh — scripts/spawn-repo-agent.sh end to end with
-# stubbed gh/herdr/bwrap: asserts the worktree is created, the herdr call
-# sequence is right, the sandbox wrapper is applied, and the prompt carries
-# the self-naming preamble. No network or real herdr session involved.
+# stubbed gh/herdr/sandbox-tool: asserts the worktree is created, the herdr
+# call sequence is right, the sandbox wrapper is applied, and the prompt
+# carries the self-naming preamble. No network or real herdr session
+# involved.
 set -uo pipefail
 
 # shellcheck source=tests/scripts/lib.sh
@@ -15,8 +16,12 @@ export HOME="${t}/home"          # keep ~/.gemini, ~/.claude.json trust edits of
 mkdir -p "${HOME}"
 stub_gh
 stub_herdr
-stub_bwrap
+stub_sandbox
 seed_origin SpawnRepo
+
+# the sandboxed pane command embeds the platform's sandbox tool
+backend="bwrap"
+[[ "$(uname -s)" == "Darwin" ]] && backend="sandbox-exec"
 
 spawn="${repo_root}/scripts/spawn-repo-agent.sh"
 
@@ -35,7 +40,7 @@ expect_eq "task worktree is detached" \
 
 log="$(cat "${HERDR_STUB_LOG}")"
 expect_grep "workspace created" "${log}" "herdr workspace create"
-expect_grep "pane run (sandboxed launch)" "${log}" "herdr pane run pane-1 exec bwrap"
+expect_grep "pane run (sandboxed launch)" "${log}" "herdr pane run pane-1 exec ${backend}"
 expect_grep "agent wait" "${log}" "herdr agent wait pane-1"
 expect_grep "prompt submitted" "${log}" "herdr agent prompt pane-1"
 expect_grep "prompt carries self-rename" "${log}" "herdr agent rename pane-1"
@@ -64,7 +69,7 @@ log="$(cat "${HERDR_STUB_LOG}")"
 expect_grep "agent start invoked" "${log}" "herdr agent start w-"
 expect_grep "kind devin" "${log}" "--kind devin"
 expect_grep "devin flags" "${log}" "--permission-mode dangerous"
-expect_not_grep "no bwrap pane run" "${log}" "pane run pane-1 exec bwrap"
+expect_not_grep "no sandboxed pane run" "${log}" "pane run pane-1 exec ${backend}"
 
 echo "== requires herdr session =="
 
@@ -80,7 +85,7 @@ out="$("${spawn}" owner/SpawnRepo)"
 expect_grep "reports pane" "${out}" "Dispatched to pane pane-1"
 expect_grep "prints idle hint" "${out}" "herdr agent prompt pane-1"
 log="$(cat "${HERDR_STUB_LOG}")"
-expect_grep "agent launched" "${log}" "pane run pane-1 exec bwrap"
+expect_grep "agent launched" "${log}" "pane run pane-1 exec ${backend}"
 expect_grep "standby prompt submitted" "${log}" "agent prompt pane-1"
 expect_grep "standby keeps rename contract" "${log}" "herdr agent rename pane-1"
 expect_not_grep "no task text in prompt" "${log}" "Task:"

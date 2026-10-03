@@ -1,13 +1,13 @@
 # Worktreeharness
 
-A harness for worktree-driven multi-repository development. All code changes flow through isolated `git worktree` checkouts — the base repository is never edited directly. Guard hooks enforce this in-process; dispatched workers run inside a bubblewrap sandbox.
+A harness for worktree-driven multi-repository development. All code changes flow through isolated `git worktree` checkouts — the base repository is never edited directly. Guard hooks enforce this in-process; dispatched workers run inside an OS sandbox (bubblewrap on Linux, Seatbelt on macOS).
 
 ## Supports
 
 | OS | Status |
 |---|:---:|
 | Linux | ✔ |
-| macOS | - |
+| macOS | ✔ |
 | Windows | ✖ |
 
 At least one agent CLI is needed to dispatch workers (`--kind`):
@@ -26,10 +26,11 @@ At least one agent CLI is needed to dispatch workers (`--kind`):
 | `git` ≥ 2.5 | Worktree support | `sudo apt install git` / `brew install git` |
 | `gh` (GitHub CLI) | Clone, PR creation, repo auth | https://cli.github.com |
 | `jq` | Hook input parsing | `sudo apt install jq` / `brew install jq` |
-| `bash` ≥ 4.0 | Script runtime | Pre-installed; macOS ships bash 3 — `brew install bash` |
-| `realpath` | Path normalisation in hooks | GNU coreutils; on macOS `brew install coreutils` |
+| `bash` ≥ 4.3 | Script runtime | Pre-installed on Linux; macOS ships bash 3 — `brew install bash` |
+| `realpath` | Path normalisation in hooks | GNU coreutils; on macOS the python3 fallback (ships with CLT) covers `realpath -m`, or `brew install coreutils` for `grealpath` |
 | `herdr` | Orchestration for dispatched workers | https://herdr.dev |
-| `bwrap` | Worker sandbox (fail-closed; `--no-sandbox` opts out) | `sudo apt install bubblewrap` |
+| `bwrap` | Worker sandbox on Linux (fail-closed; `--no-sandbox` opts out) | `sudo apt install bubblewrap` |
+| `sandbox-exec` | Worker sandbox on macOS (fail-closed; `--no-sandbox` opts out) | Built into macOS (`/usr/bin/sandbox-exec`; deprecated but functional) |
 
 ## Quick start
 

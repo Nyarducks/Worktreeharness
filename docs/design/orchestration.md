@@ -3,7 +3,7 @@ type: Design Doc
 title: Orchestration — Orchestrator and Worker lifecycle
 description: How the orchestrator dispatches, monitors, and steers workers through herdr; worker lifecycle and ownership.
 status: current
-last_modified: 2026-09-29
+last_modified: 2026-10-03
 tags: [orchestrator, herdr, dispatch, worker]
 sources: [scripts/spawn-repo-agent.sh, .agents/skills/worktree-development/SKILL.md]
 ---
@@ -30,7 +30,7 @@ sequenceDiagram
     O->>H: confirm agent kind + repo via ask-question tool<br/>(only when the request omits them)
     O->>G: create-worktree.sh --detach → worktree/R/task/<uuid><br/>(detached HEAD at origin/main)
     O->>R: workspace get/create (label = repo)<br/>tab create → pane
-    O->>R: pane run — bwrap-wrapped agent, cwd=worktree
+    O->>R: pane run — sandbox-wrapped agent, cwd=worktree
     O->>R: agent prompt — task + self-name preamble,<br/>or standby contract when no task given
     R->>W: start in sandbox
     W->>R: agent rename / tab rename
@@ -109,9 +109,11 @@ worker created one) and close the tab.
 
 ## Security
 
-Workers run inside the bubblewrap sandbox by default (fail-closed without
-`bwrap`; `--no-sandbox` opts out). Sandboxed workers launch via
-`herdr pane run` because `agent start --kind` cannot inject a wrapper.
+Workers run inside the OS sandbox by default — bubblewrap on Linux,
+Seatbelt (`sandbox-exec`) on macOS — and dispatch fails closed when no
+platform backend is available (`--no-sandbox` opts out). Sandboxed workers
+launch via `herdr pane run` because `agent start --kind` cannot inject a
+wrapper.
 
 ## Testing
 

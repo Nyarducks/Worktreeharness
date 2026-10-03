@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Shared helpers for tests/scripts/*.sh — generic assertions plus PATH stubs
-# for gh/herdr/bwrap so script behaviour can be tested without network or a
-# real herdr session.
+# for gh/herdr and the platform's sandbox tool so script behaviour can be
+# tested without network or a real herdr session.
 #
 # Sourcing this file also sets:
 #   repo_root — the harness checkout under test
@@ -114,10 +114,13 @@ EOF
   : > "${HERDR_STUB_LOG}"
 }
 
-# stub_bwrap — just enough for `command -v bwrap` to succeed.
-stub_bwrap() {
-  printf '#!/usr/bin/env bash\nexit 0\n' > "${stub_bin}/bwrap"
-  chmod +x "${stub_bin}/bwrap"
+# stub_sandbox — just enough for the platform's sandbox tool (`bwrap` on
+# Linux, `sandbox-exec` on macOS) to pass `command -v`.
+stub_sandbox() {
+  local tool="bwrap"
+  [[ "$(uname -s)" == "Darwin" ]] && tool="sandbox-exec"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "${stub_bin}/${tool}"
+  chmod +x "${stub_bin}/${tool}"
 }
 
 # seed_origin <name> — create a local bare origin with a main branch

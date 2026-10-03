@@ -68,14 +68,18 @@ One call does the whole sequence:
    added to it, or a new workspace is created — one workspace per repo, one
    tab per task.
 3. The agent launches in that tab's root pane under a placeholder name
-   `w-<uuid>`. By default it runs inside a bubblewrap mount namespace built
-   by `scripts/lib/sandbox-wrap.sh` — `/` read-only, `$HOME`/`/tmp` tmpfs,
-   writable only to the worktree, the base repo's `.git`, the herdr socket,
-   and the agent's own config dirs. Sandboxed workers launch via
-   `herdr pane run` (bwrap can't be injected into `agent start --kind`);
-   `--no-sandbox` falls back to `herdr agent start` (which itself falls back
-   to `pane run` if the caller's permission classifier denies it). Dispatch
-   fails closed when `bwrap` is missing unless `--no-sandbox` is passed.
+   `w-<uuid>`. By default it runs inside the OS sandbox built by
+   `scripts/lib/sandbox-wrap.sh` — a bubblewrap mount namespace on Linux,
+   a Seatbelt profile (`sandbox-exec`) on macOS — confining writes to the
+   worktree, the base repo's `.git`, the herdr socket, the agent's own
+   config dirs, and OS scratch dirs; credentials and sibling lab trees
+   stay hidden. Sandboxed workers launch via
+   `herdr pane run` (the wrapper can't be injected into
+   `agent start --kind`); `--no-sandbox` falls back to
+   `herdr agent start` (which itself falls back
+   to `pane run` if the caller's permission classifier denies it).
+   Dispatch fails closed when no sandbox backend is available unless
+   `--no-sandbox` is passed.
 4. `herdr agent prompt <pane> "<task>" --wait` submits the task atomically.
    The prompt embeds a short preamble telling the worker to rename itself
    (`herdr agent rename <pane> <slug>`) and its tab
