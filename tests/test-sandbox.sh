@@ -131,9 +131,16 @@ Darwin)
   out="$(sandbox_wrap_cmd "${fake_wt}" claude bash -c 'echo hi')"
   expect_rc "wrap command builds" "$?" 0
   expect_grep "emits sandbox-exec"    "${out}" "sandbox-exec -p"
-  expect_grep "writes denied by default" "${out}" "(deny file-write*)"
-  expect_grep "worktree writable"     "${out}" "(subpath \"$(realpath "${fake_wt}")\")"
   expect_grep "command tail"          "${out}" "bash -c"
+
+  # the profile is %q-escaped inside the command line — parse the -p
+  # argument back out before asserting on profile content
+  local_profile=""
+  eval "set -- ${out}"
+  while (($#)); do [[ "$1" == "-p" ]] && { local_profile="$2"; break; }; shift; done
+  expect_grep "profile extracted"     "${local_profile}" "(version 1)"
+  expect_grep "writes denied by default" "${local_profile}" "(deny file-write*)"
+  expect_grep "worktree writable"     "${local_profile}" "(subpath \"$(realpath "${fake_wt}")\")"
 
   # nonexistent paths are skipped — a stale subpath filter would hide the
   # failure until the worker ran
@@ -266,12 +273,13 @@ Darwin)
     run_sandbox 'touch wt-file.txt' > /dev/null
     expect_file "write inside worktree persists" "${wt}/wt-file.txt" exists
 
-    run_sandbox 'git add wt-file.txt && git -c user.email=t@t -c user.name=t commit -qm sb-test' > /dev/null
+    out="$(run_sandbox 'git add wt-file.txt && git -c user.email=t@t -c user.name=t commit -qm sb-test')"
     last_commit="$(git -C "${wt}" log -1 --pretty=%s 2>/dev/null)"
     if [[ "${last_commit}" == "sb-test" ]]; then
       ok "git commit works (base .git writable)"
     else
       bad "git commit works (base .git writable)"
+      printf '       out=%s\n' "${out:0:400}"
     fi
 
     # the lab sits under $HOME — every write outside the allowed set must fail

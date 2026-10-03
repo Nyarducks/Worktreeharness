@@ -250,9 +250,15 @@ _sandbox_wrap_seatbelt() {
   profile+=" (allow file-write* ${writes[*]})"
   ((${#reads[@]})) && profile+=" (deny file-read* ${reads[*]})"
   # The ssh-agent socket sits under a launchd dir outside $HOME — deny it
-  # explicitly since nothing else covers it.
+  # explicitly since nothing else covers it. Seatbelt matches canonical
+  # paths, so deny both the raw and resolved forms (/tmp → /private/tmp).
   if [[ -n "${SSH_AUTH_SOCK:-}" ]]; then
-    profile+=" (deny file-read* file-write* network-outbound network-inbound (literal \"$(_seatbelt_escape "${SSH_AUTH_SOCK}")\"))"
+    local sock_canon
+    sock_canon="$(realpath "${SSH_AUTH_SOCK}" 2>/dev/null || true)"
+    profile+=" (deny file-read* file-write* network-outbound network-inbound (literal \"$(_seatbelt_escape "${SSH_AUTH_SOCK}")\")"
+    [[ -n "${sock_canon}" && "${sock_canon}" != "${SSH_AUTH_SOCK}" ]] \
+      && profile+=" (literal \"$(_seatbelt_escape "${sock_canon}")\")"
+    profile+=")"
   fi
 
   printf '%q ' sandbox-exec -p "${profile}" "$@"
