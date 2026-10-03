@@ -57,7 +57,9 @@ hook_deny_json() {
 # filesystem escape (e.g. the binary being exec'd under /usr/bin).
 hook_is_system_path() {
   case "$1" in
-    /bin/* | /usr/bin/* | /usr/local/bin/* | /dev/null) return 0 ;;
+    # bare dirs too: /bin canonicalizes to /usr/bin on merged-usr systems,
+    # which would otherwise fall outside the /* child patterns
+    /bin | /usr/bin | /usr/local/bin | /bin/* | /usr/bin/* | /usr/local/bin/* | /dev/null) return 0 ;;
     *) return 1 ;;
   esac
 }
