@@ -130,14 +130,19 @@ Darwin)
   mkdir -p "${fake_wt}"
   out="$(sandbox_wrap_cmd "${fake_wt}" claude bash -c 'echo hi')"
   expect_rc "wrap command builds" "$?" 0
-  expect_grep "emits sandbox-exec"    "${out}" "sandbox-exec -p"
+  expect_grep "emits sandbox-exec"    "${out}" "sandbox-exec -f"
   expect_grep "command tail"          "${out}" "bash -c"
 
-  # the profile is %q-escaped inside the command line — parse the -p
-  # argument back out before asserting on profile content
+  # the profile lives in a file named by -f — read it back before asserting
+  # on profile content
   local_profile=""
+  profile_file=""
   eval "set -- ${out}"
-  while (($#)); do [[ "$1" == "-p" ]] && { local_profile="$2"; break; }; shift; done
+  while (($#)); do [[ "$1" == "-f" ]] && { profile_file="$2"; break; }; shift; done
+  [[ -f "${profile_file}" ]] && local_profile="$(cat "${profile_file}")"
+  # herdr pane run types the line before the shell reads input: 1024-byte cap
+  if ((${#out} < 1024)); then ok "command line under 1024 bytes"; else bad "command line under 1024 bytes (${#out})"; fi
+  rm -f "${profile_file}"
   expect_grep "profile extracted"     "${local_profile}" "(version 1)"
   expect_grep "writes denied by default" "${local_profile}" "(deny file-write*)"
   expect_grep "worktree writable"     "${local_profile}" "(subpath \"$(realpath "${fake_wt}")\")"
@@ -145,9 +150,13 @@ Darwin)
   # nonexistent paths are skipped — a stale subpath filter would hide the
   # failure until the worker ran
   missing="${sand}/does-not-exist"
-  expect_not_grep "missing path not in profile" "${out}" "${missing}"
+  expect_not_grep "missing path not in profile" "${local_profile}" "${missing}"
 
   out="$(sandbox_wrap_cmd "${fake_wt}" devin devin)"
+  eval "set -- ${out}"
+  while (($#)); do [[ "$1" == "-f" ]] && { profile_file="$2"; break; }; shift; done
+  out="$(cat "${profile_file}")"
+  rm -f "${profile_file}"
   if [[ -d "${HOME}/.config/devin" ]]; then
     expect_grep "devin kind allows config dir" "${out}" ".config/devin"
   else

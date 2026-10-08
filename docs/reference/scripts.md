@@ -126,8 +126,8 @@ substitutions — are still checked.
 
 Builds the sandboxed command line that confines a spawned worker to its
 worktree — agent-agnostic OS-level isolation. Backend per platform:
-bubblewrap mount namespace on Linux, a generated Seatbelt profile passed
-to `/usr/bin/sandbox-exec` on macOS. See `sandbox.md` for the permission
+bubblewrap mount namespace on Linux, a generated Seatbelt profile (temp file, `-f`)
+applied by `/usr/bin/sandbox-exec` on macOS. See `sandbox.md` for the permission
 model. `sandbox_wrap_cmd <worktree> <kind> <argv...>` prints a quoted
 `<backend> ... <argv>` command; `sandbox_backend` prints which backend
 applies here. Both return 3 when the platform's tool is missing (or the

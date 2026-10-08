@@ -276,5 +276,13 @@ _sandbox_wrap_seatbelt() {
     profile+=")"
   fi
 
-  printf '%q ' sandbox-exec -p "${profile}" "$@"
+  # The profile goes to a file, not the command line: `herdr pane run`
+  # types the line into a pane whose shell may not be reading yet, and the
+  # tty accepts only 1024 bytes per line in that state — an inline profile
+  # (~2 KB) is truncated and never runs. The file lives outside the
+  # worktree and is read by sandbox-exec before the sandbox applies.
+  local profile_file
+  profile_file="$(mktemp "${TMPDIR:-/tmp}/wth-seatbelt.XXXXXX")" || return 1
+  printf '%s\n' "${profile}" > "${profile_file}" || return 1
+  printf '%q ' sandbox-exec -f "${profile_file}" "$@"
 }
