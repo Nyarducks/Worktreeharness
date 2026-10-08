@@ -3,7 +3,7 @@ type: Design Doc
 title: Worktreeharness
 description: Why this harness exists, what it does, and how the parts fit together — the entry point to docs/design/.
 status: current
-last_modified: 2026-10-03
+last_modified: 2026-10-08
 tags: [overview, architecture, design]
 sources: [docs/design]
 ---
