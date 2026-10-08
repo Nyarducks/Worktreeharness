@@ -32,7 +32,11 @@ obfuscated shell. The backend is selected by platform:
   `deny default`) keeps the profile robust: an exhaustive op allowlist —
   mach services, sysctl, iokit — is fragile across macOS releases and a
   missing op breaks agents silently, while the property the harness
-  promises is write confinement plus credential hiding.
+  promises is write confinement plus credential hiding. The profile is
+  written to a temp file under `$TMPDIR` and applied with
+  `sandbox-exec -f`: `herdr pane run` types the launch line before the
+  pane's shell reads input, where the tty caps a line at 1024 bytes, and an
+  inline profile (about 2 KB) would be truncated.
 
 ```mermaid
 flowchart LR

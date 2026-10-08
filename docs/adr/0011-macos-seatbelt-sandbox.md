@@ -27,7 +27,7 @@ The harness was Linux-only. Three dependencies blocked macOS:
 ## Decision
 
 - `scripts/lib/sandbox-wrap.sh` dispatches per `uname -s`. macOS builds a
-  Seatbelt profile passed inline to `sandbox-exec`: `allow default`,
+  Seatbelt profile written to a temp file and passed via `sandbox-exec -f` (an inline `-p` profile exceeds the 1024-byte pane input line limit): `allow default`,
   `deny file-write*`, `allow file-write*` for the worktree + base `.git`
   + agent config dirs + OS scratch dirs, then `deny file-read*` for
   credential paths (`~/.ssh`, `~/.gnupg`, `~/.aws`, ...) and for sibling
