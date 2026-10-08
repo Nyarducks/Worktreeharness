@@ -91,6 +91,12 @@ Linux)
   expect_grep "worktree rw bind"   "${out}" "--bind /some/wt /some/wt"
   expect_grep "command tail"       "${out}" "bash -c"
 
+  # herdr pane run types the line before the shell reads input: 1024-byte
+  # cap. Use a realistic lab-style worktree path and agent flags.
+  long_wt="${HOME}/Development/lab/worktree/some-org-repo-name/feat/a-fairly-long-branch-name"
+  out="$(sandbox_wrap_cmd "${long_wt}" claude claude --permission-mode bypassPermissions)"
+  if ((${#out} < 1024)); then ok "command line under 1024 bytes"; else bad "command line under 1024 bytes (${#out})"; fi
+
   # worktree under /tmp → /tmp is bound rw instead of replaced by tmpfs
   out="$(sandbox_wrap_cmd "/tmp/wt-x" claude bash)"
   expect_grep     "tmp worktree: /tmp bound"   "${out}" "--bind /tmp /tmp"
